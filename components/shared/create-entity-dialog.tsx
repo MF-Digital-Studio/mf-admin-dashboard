@@ -203,7 +203,7 @@ function TaskFields({ projectNames }: { projectNames: string[] }) {
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Atanan Kişi</label>
-          <Input defaultValue="Mustafa F." required />
+          <Input defaultValue="Admin" required />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">

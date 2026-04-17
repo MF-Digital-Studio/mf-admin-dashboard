@@ -1,8 +1,9 @@
 ﻿'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   LayoutDashboard,
   Users,
@@ -10,13 +11,12 @@ import {
   CheckSquare,
   BarChart3,
   FileText,
-  Layers,
   StickyNote,
   Files,
   Settings,
   ChevronLeft,
   ChevronRight,
-  Zap,
+  X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RouteId } from '@/types'
@@ -28,7 +28,6 @@ const navItems: Array<{ label: string; icon: typeof LayoutDashboard; href: strin
   { label: 'Görevler', icon: CheckSquare, href: '/tasks', id: 'tasks' },
   { label: 'Finans', icon: BarChart3, href: '/finance', id: 'finance' },
   { label: 'Teklifler', icon: FileText, href: '/proposals', id: 'proposals' },
-  { label: 'Hizmetler', icon: Layers, href: '/services', id: 'services' },
   { label: 'Notlar', icon: StickyNote, href: '/notes', id: 'notes' },
   { label: 'Dosyalar', icon: Files, href: '/files', id: 'files' },
   { label: 'Ayarlar', icon: Settings, href: '/settings', id: 'settings' },
@@ -41,26 +40,61 @@ function isActivePath(pathname: string, href: string) {
   return pathname === href
 }
 
-export function DashboardSidebar() {
+interface DashboardSidebarProps {
+  mobileOpen: boolean
+  onMobileClose: () => void
+}
+
+export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
   const pathname = usePathname()
+  const previousPathnameRef = useRef(pathname)
 
-  return (
-    <aside
-      className={cn(
-        'relative flex flex-col border-r border-border bg-sidebar transition-all duration-300 ease-in-out shrink-0',
-        collapsed ? 'w-[60px]' : 'w-[220px]'
-      )}
-    >
-      <div className={cn('flex items-center gap-3 px-4 py-5 border-b border-sidebar-border', collapsed && 'justify-center px-0')}>
-        <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary shrink-0">
-          <Zap className="w-4 h-4 text-primary-foreground" />
+  useEffect(() => {
+    if (pathname !== previousPathnameRef.current && mobileOpen) {
+      onMobileClose()
+    }
+    previousPathnameRef.current = pathname
+  }, [mobileOpen, onMobileClose, pathname])
+
+  useEffect(() => {
+    if (!mobileOpen) return
+
+    const originalOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+    }
+  }, [mobileOpen])
+
+  const sidebarContent = (isMobile = false) => (
+    <>
+      <div className={cn('flex items-center gap-3 px-4 py-5 border-b border-sidebar-border', !isMobile && collapsed && 'justify-center px-0')}>
+        <div className="flex items-center justify-center w-8 h-8 shrink-0 overflow-hidden rounded-md">
+          <Image
+            src="/logo.png"
+            alt="MF Digital Logo"
+            width={32}
+            height={32}
+            className="h-full w-full object-contain"
+            priority
+          />
         </div>
-        {!collapsed && (
-          <div>
+        {(isMobile || !collapsed) && (
+          <div className="min-w-0">
             <span className="text-sm font-bold text-sidebar-foreground tracking-tight leading-none">MF Digital</span>
-            <span className="block text-xs text-muted-foreground leading-none mt-0.5">Yönetim Paneli</span>
+            <span className="block text-xs text-muted-foreground leading-none mt-0.5">Yonetim Paneli</span>
           </div>
+        )}
+        {isMobile && (
+          <button
+            onClick={onMobileClose}
+            className="ml-auto rounded-md p-2 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
+            aria-label="Menuyu kapat"
+          >
+            <X className="w-4 h-4" />
+          </button>
         )}
       </div>
 
@@ -73,10 +107,11 @@ export function DashboardSidebar() {
             <Link
               key={item.id}
               href={item.href}
-              title={collapsed ? item.label : undefined}
+              onClick={isMobile ? onMobileClose : undefined}
+              title={!isMobile && collapsed ? item.label : undefined}
               className={cn(
                 'flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-all duration-150 w-full text-left group',
-                collapsed && 'justify-center px-0',
+                !isMobile && collapsed && 'justify-center px-0',
                 active
                   ? 'bg-sidebar-accent text-sidebar-foreground'
                   : 'text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60'
@@ -88,21 +123,45 @@ export function DashboardSidebar() {
                   active ? 'text-primary' : 'text-muted-foreground group-hover:text-sidebar-foreground'
                 )}
               />
-              {!collapsed && <span>{item.label}</span>}
-              {!collapsed && active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
+              {(isMobile || !collapsed) && <span>{item.label}</span>}
+              {(isMobile || !collapsed) && active && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />}
             </Link>
           )
         })}
       </nav>
 
-      <div className="p-2 border-t border-sidebar-border">
-        <button
-          onClick={() => setCollapsed((value) => !value)}
-          className="flex items-center justify-center w-full rounded-md py-1.5 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
-        >
-          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-        </button>
-      </div>
-    </aside>
+      {!isMobile && (
+        <div className="p-2 border-t border-sidebar-border">
+          <button
+            onClick={() => setCollapsed((value) => !value)}
+            className="flex items-center justify-center w-full rounded-md py-1.5 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
+          >
+            {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        </div>
+      )}
+    </>
+  )
+
+  return (
+    <>
+      <aside
+        className={cn(
+          'relative hidden md:flex flex-col border-r border-border bg-sidebar transition-all duration-300 ease-in-out shrink-0',
+          collapsed ? 'w-[60px]' : 'w-[220px]'
+        )}
+      >
+        {sidebarContent(false)}
+      </aside>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black/60" onClick={onMobileClose} />
+          <aside className="absolute inset-0 flex flex-col bg-sidebar">
+            {sidebarContent(true)}
+          </aside>
+        </div>
+      )}
+    </>
   )
 }

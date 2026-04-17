@@ -59,7 +59,7 @@ export function ProjectsPage() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      <div className={cn('flex-1 overflow-y-auto p-6 space-y-5', selected && 'hidden xl:block')}>
+      <div className={cn('flex-1 overflow-y-auto p-4 sm:p-6 space-y-5', selected && 'hidden xl:block')}>
         <PageHeader
           title="Projeler"
           description={`${projects.length} toplam proje`}

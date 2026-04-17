@@ -29,14 +29,14 @@ export function ProposalsPage() {
     .reduce((sum, proposal) => sum + proposal.amount, 0)
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto h-full">
+    <div className="p-4 sm:p-6 space-y-6 overflow-y-auto h-full">
       <PageHeader
         title="Teklifler"
         description="Satış hattı ve teklif takibi"
         action={<CreateEntityDialog entity="proposal" trigger={<Button size="sm" className="h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90">+ Yeni Teklif</Button>} />}
       />
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <StatCard label="Toplam Teklif" value={String(total)} icon={FileText} iconToneClassName="text-primary" iconBackgroundClassName="bg-primary/10" />
         <StatCard
           label="Kabul Edilen"
@@ -53,7 +53,7 @@ export function ProposalsPage() {
 
       <div className="bg-card border border-border rounded-xl p-5">
         <h3 className="text-base font-semibold text-foreground mb-4">Satış Hattı</h3>
-        <div className="grid grid-cols-3 xl:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
           {pipelineStages.map((stage) => (
             <div key={stage.stage} className="text-center">
               <div className={cn('w-full h-1.5 rounded-full mb-2', pipelineColors[stage.stage] || 'bg-secondary')} />
@@ -83,7 +83,7 @@ export function ProposalsPage() {
 
       <TableWrapper title="Tüm Teklifler">
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
+          <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-border">
                 {['Teklif', 'Müşteri', 'Tutar', 'Gönderim Tarihi', 'Durum', 'Takip'].map((heading) => (

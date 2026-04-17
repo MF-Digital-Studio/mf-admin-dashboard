@@ -9,7 +9,6 @@ export type RouteId =
   | 'tasks'
   | 'finance'
   | 'proposals'
-  | 'services'
   | 'notes'
   | 'files'
   | 'settings'
@@ -24,4 +23,3 @@ export type BadgeTone =
   | 'red'
   | 'purple'
   | 'cyan'
-

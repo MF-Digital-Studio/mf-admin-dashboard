@@ -13,6 +13,11 @@ export const metadata: Metadata = {
   title: 'MF Digital Studio - Yönetim',
   description: 'MF Digital Studio için iç yönetim paneli',
   generator: 'v0.app',
+  icons: {
+    icon: '/favicon.png',
+    shortcut: '/favicon.png',
+    apple: '/favicon.png',
+  },
 }
 
 export default function RootLayout({

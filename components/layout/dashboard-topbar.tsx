@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Bell, ChevronDown, Plus, Search } from 'lucide-react'
+import { Bell, ChevronDown, Menu, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -23,7 +23,6 @@ const pageTitles: Record<string, string> = {
   '/tasks': 'Görevler',
   '/finance': 'Finans',
   '/proposals': 'Teklifler',
-  '/services': 'Hizmetler',
   '/notes': 'Notlar',
   '/files': 'Dosyalar',
   '/settings': 'Ayarlar',
@@ -37,16 +36,30 @@ const quickAddItems: Array<{ label: string; entity: CreateEntityType }> = [
   { label: 'Yeni Teklif', entity: 'proposal' },
 ]
 
-export function DashboardTopbar() {
+interface DashboardTopbarProps {
+  onMobileMenuOpen: () => void
+}
+
+export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
   const pathname = usePathname()
 
   return (
-    <header className="flex items-center justify-between h-14 px-4 border-b border-border bg-card shrink-0 gap-4">
+    <header className="flex items-center justify-between h-14 px-3 sm:px-4 border-b border-border bg-card shrink-0 gap-2 sm:gap-4">
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onMobileMenuOpen}
+        className="h-8 w-8 p-0 md:hidden hover:bg-accent"
+        aria-label="Menüyü aç"
+      >
+        <Menu className="w-4 h-4 text-muted-foreground" />
+      </Button>
+
       <h1 className="text-base font-semibold text-foreground hidden md:block">
         {pageTitles[pathname] ?? 'Gösterge Paneli'}
       </h1>
 
-      <div className="relative flex-1 max-w-xs">
+      <div className="relative hidden sm:block flex-1 max-w-xs">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <Input
           placeholder="Müşteri, proje ara..."
@@ -54,12 +67,12 @@ export function DashboardTopbar() {
         />
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button size="sm" className="h-8 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium">
+            <Button size="sm" className="h-8 px-2 sm:px-3 gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium">
               <Plus className="w-3.5 h-3.5" />
-              Hızlı Ekle
+              <span className="hidden sm:inline">Hızlı Ekle</span>
               <ChevronDown className="w-3 h-3 opacity-70" />
             </Button>
           </DropdownMenuTrigger>
@@ -109,7 +122,7 @@ export function DashboardTopbar() {
                 <span className="text-xs font-bold text-primary">MF</span>
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-foreground leading-none">Mustafa F.</p>
+                <p className="text-sm font-medium text-foreground leading-none">Admin</p>
                 <p className="text-xs text-muted-foreground leading-none mt-0.5">Kurucu</p>
               </div>
               <ChevronDown className="w-3 h-3 text-muted-foreground hidden md:block" />

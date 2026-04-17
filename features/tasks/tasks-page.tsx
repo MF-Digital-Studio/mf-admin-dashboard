@@ -56,14 +56,14 @@ export function TasksPage() {
   }
 
   return (
-    <div className="p-6 space-y-5 overflow-y-auto h-full">
+    <div className="p-4 sm:p-6 space-y-5 overflow-y-auto h-full">
       <PageHeader
         title="Görevler"
         description={`${tasks.length} toplam görev`}
         action={<CreateEntityDialog entity="task" trigger={<Button size="sm" className="h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90">+ Yeni Görev</Button>} />}
       />
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -99,7 +99,7 @@ export function TasksPage() {
 
       <TableWrapper title="Görevler" description="İş kuyruğu ve teslim takibi">
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
+          <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-border">
                 {['', 'Görev', 'Proje', 'Atanan', 'Öncelik', 'Durum', 'Teslim Tarihi'].map((heading) => (

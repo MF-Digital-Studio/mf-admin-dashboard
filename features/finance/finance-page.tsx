@@ -35,10 +35,10 @@ export function FinancePage() {
   const pendingTotal = payments.filter((payment) => payment.status === 'Pending').reduce((sum, payment) => sum + payment.amount, 0)
 
   return (
-    <div className="p-6 space-y-6 overflow-y-auto h-full">
+    <div className="p-4 sm:p-6 space-y-6 overflow-y-auto h-full">
       <PageHeader title="Finans" description="Mayıs 2024 özeti" />
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <StatCard
           label="Aylık Gelir"
           value={formatCurrency(totalRevenue)}
@@ -127,7 +127,7 @@ export function FinancePage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {[
           { icon: Star, label: 'En İyi Hizmet', value: 'E-ticaret', sub: '₺70.000 gelir', color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
           { icon: Target, label: 'En İyi Müşteri', value: 'Bodrum Butik Otel', sub: '₺54.000 ödendi', color: 'text-primary', bg: 'bg-primary/10' },
@@ -147,7 +147,7 @@ export function FinancePage() {
 
       <TableWrapper title="Ödeme Kayıtları">
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
+          <table className="w-full min-w-[760px] text-sm">
             <thead>
               <tr className="border-b border-border">
                 {['Müşteri', 'Kategori', 'Tutar', 'Tarih', 'Yöntem', 'Durum'].map((heading) => (
@@ -173,7 +173,7 @@ export function FinancePage() {
 
       <TableWrapper title="Gider Kayıtları">
         <div className="overflow-x-auto">
-          <table className="w-full text-[13px]">
+          <table className="w-full min-w-[680px] text-sm">
             <thead>
               <tr className="border-b border-border">
                 {['Gider Adı', 'Kategori', 'Tutar', 'Tarih'].map((heading) => (

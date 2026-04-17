@@ -59,7 +59,7 @@ export function ClientsPage() {
 
   return (
     <div className="flex h-full overflow-hidden">
-      <div className={cn('flex-1 overflow-y-auto p-6 space-y-5 transition-all', selected && 'hidden xl:block')}>
+      <div className={cn('flex-1 overflow-y-auto p-4 sm:p-6 space-y-5 transition-all', selected && 'hidden xl:block')}>
         <PageHeader
           title="Müşteriler"
           description={`${clients.length} toplam müşteri`}
@@ -74,7 +74,7 @@ export function ClientsPage() {
 
         <TableWrapper title="Müşteri Listesi">
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+            <table className="w-full min-w-[920px] text-sm">
               <thead>
                 <tr className="border-b border-border">
                   {['Şirket', 'İletişim', 'Hizmetler', 'Durum', 'Projeler', 'Toplam Ödeme', 'Son İletişim', ''].map((heading) => (
