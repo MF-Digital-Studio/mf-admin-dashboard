@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ClientStatus {
+  LEAD
+  IN_DISCUSSION
+  ACTIVE
+  COMPLETED
+  INACTIVE
+}
+
+enum ServiceType {
+  WEB_DESIGN
+  SEO
+  QR_MENU
+  E_COMMERCE
+}
+
+enum ProjectStatus {
+  PLANNING
+  DESIGN
+  DEVELOPMENT
+  REVISION
+  WAITING_FOR_CLIENT
+  ON_HOLD
+  COMPLETED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  REVIEW
+  DONE
+  BLOCKED
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+}
+
+enum ProposalStatus {
+  DRAFT
+  SENT
+  UNDER_REVIEW
+  ACCEPTED
+  REJECTED
+}
+
+model Client {
+  id            String       @id @default(cuid())
+  companyName   String
+  contactPerson String
+  phone         String
+  email         String       @unique
+  serviceType   ServiceType
+  status        ClientStatus @default(LEAD)
+  notes         String?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  projects  Project[]
+  tasks     Task[]
+  payments  Payment[]
+  proposals Proposal[]
+
+  @@index([companyName])
+  @@index([status])
+}
+
+model Project {
+  id        String        @id @default(cuid())
+  name      String
+  category  ServiceType
+  status    ProjectStatus @default(PLANNING)
+  priority  Priority      @default(MEDIUM)
+  budget    Decimal?      @db.Decimal(12, 2)
+  startDate DateTime?
+  deadline  DateTime?
+  progress  Int           @default(0)
+  notes     String?
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  tasks     Task[]
+  payments  Payment[]
+  proposals Proposal[]
+
+  @@index([clientId])
+  @@index([status])
+}
+
+model Task {
+  id        String     @id @default(cuid())
+  title     String
+  assignee  String
+  priority  Priority   @default(MEDIUM)
+  status    TaskStatus @default(TODO)
+  dueDate   DateTime?
+  notes     String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([clientId])
+  @@index([status])
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  amount        Decimal       @db.Decimal(12, 2)
+  category      ServiceType
+  status        PaymentStatus @default(PENDING)
+  paymentMethod String
+  paidAt        DateTime?
+  notes         String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
+}
+
+model Proposal {
+  id           String         @id @default(cuid())
+  title        String
+  amount       Decimal        @db.Decimal(12, 2)
+  sentDate     DateTime?
+  status       ProposalStatus @default(DRAFT)
+  followUpDate DateTime?
+  notes        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([projectId])
+  @@index([status])
+}
