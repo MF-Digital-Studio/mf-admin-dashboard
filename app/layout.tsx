@@ -1,0 +1,32 @@
+﻿import type { Metadata } from 'next'
+import { Inter } from 'next/font/google'
+import './globals.css'
+import { DashboardShell } from '@/components/layout/dashboard-shell'
+import { ThemeProvider } from '@/components/theme-provider'
+
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+})
+
+export const metadata: Metadata = {
+  title: 'MF Digital Studio - Yönetim',
+  description: 'MF Digital Studio için iç yönetim paneli',
+  generator: 'v0.app',
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode
+}>) {
+  return (
+    <html lang="tr" className="bg-background" suppressHydrationWarning>
+      <body className={`${inter.className} antialiased`}>
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem storageKey="mf-admin-theme">
+          <DashboardShell>{children}</DashboardShell>
+        </ThemeProvider>
+      </body>
+    </html>
+  )
+}
