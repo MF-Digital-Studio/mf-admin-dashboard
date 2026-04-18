@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronRight, Instagram, Mail, MapPin, Phone, X } from 'lucide-react'
+import { ChevronRight, Globe, Instagram, Mail, MapPin, MessageCircle, Phone, X } from 'lucide-react'
 import { BadgePill, StatusBadge } from '@/components/shared/badges'
 import InlineSelect from '@/components/ui/inline-select'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -12,6 +12,7 @@ import { TableWrapper } from '@/components/shared/table-wrapper'
 import { Button } from '@/components/ui/button'
 import { CreateEntityDialog, type ClientFormValues } from '@/components/shared/create-entity-dialog'
 import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
+import { normalizeEmail, normalizeInstagram, normalizeWebsite, toWhatsAppLink } from '@/features/clients/normalizers'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/format'
 import type { Client, Payment, Project, ServiceName } from '@/types'
@@ -136,6 +137,11 @@ export function ClientsPage() {
   const selectedClient = selectedDetails?.client ?? clients.find((client) => client.id === selected) ?? null
   const clientProjects = selectedDetails?.projects ?? []
   const clientPayments = selectedDetails?.payments ?? []
+  const instagramLink = normalizeInstagram(selectedClient?.instagram)
+  const normalizedEmail = normalizeEmail(selectedClient?.email)
+  const emailLink = normalizedEmail ? `mailto:${normalizedEmail}` : null
+  const websiteLink = normalizeWebsite(selectedClient?.website)
+  const whatsappLink = toWhatsAppLink(selectedClient?.whatsapp, selectedClient?.phone)
 
   const selectedEditableValues: ClientFormValues | undefined = selectedDetails?.editable
     ? selectedDetails.editable
@@ -144,8 +150,10 @@ export function ClientsPage() {
         company: selectedClient.company,
         contact: selectedClient.contact,
         phone: selectedClient.phone,
-        email: selectedClient.email,
+        email: selectedClient.email ?? '',
         instagram: selectedClient.instagram ?? '',
+        whatsapp: selectedClient.whatsapp ?? '',
+        website: selectedClient.website ?? '',
         service: selectedClient.services[0] ?? 'Web Design',
         status: selectedClient.status,
         notes: selectedClient.notes ?? '',
@@ -377,19 +385,53 @@ export function ClientsPage() {
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">İletişim</p>
               <div className="space-y-1.5">
                 <div className="flex items-center gap-2 text-sm text-foreground">
-                  <span className="w-4 h-4 rounded bg-secondary flex items-center justify-center"><Mail className="w-2.5 h-2.5 text-muted-foreground" /></span>
-                  {selectedClient.email}
-                </div>
-                <div className="flex items-center gap-2 text-sm text-foreground">
                   <span className="w-4 h-4 rounded bg-secondary flex items-center justify-center"><Phone className="w-2.5 h-2.5 text-muted-foreground" /></span>
                   {selectedClient.phone}
                 </div>
-                {selectedClient.instagram && (
-                  <div className="flex items-center gap-2 text-sm text-foreground">
-                    <span className="w-4 h-4 rounded bg-secondary flex items-center justify-center"><Instagram className="w-2.5 h-2.5 text-muted-foreground" /></span>
-                    <span className="truncate">{selectedClient.instagram}</span>
-                  </div>
-                )}
+                <div className="flex items-center gap-2">
+                  {emailLink && (
+                    <a
+                      href={emailLink}
+                      aria-label="Email"
+                      className="w-8 h-8 rounded-md bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Mail className="w-4 h-4" />
+                    </a>
+                  )}
+                  {whatsappLink && (
+                    <a
+                      href={whatsappLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="WhatsApp"
+                      className="w-8 h-8 rounded-md bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <MessageCircle className="w-4 h-4" />
+                    </a>
+                  )}
+                  {instagramLink && (
+                    <a
+                      href={instagramLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Instagram"
+                      className="w-8 h-8 rounded-md bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Instagram className="w-4 h-4" />
+                    </a>
+                  )}
+                  {websiteLink && (
+                    <a
+                      href={websiteLink}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label="Website"
+                      className="w-8 h-8 rounded-md bg-secondary border border-border flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      <Globe className="w-4 h-4" />
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
 

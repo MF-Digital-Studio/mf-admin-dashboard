@@ -103,8 +103,10 @@ model Client {
   companyName   String
   contactPerson String
   phone         String
-  email         String       @unique
+  email         String?      @unique
   instagram     String?
+  whatsapp      String?
+  website       String?
   serviceType   ServiceType
   status        ClientStatus @default(LEAD)
   notes         String?

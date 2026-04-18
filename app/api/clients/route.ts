@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaClientToClientSummary, mapServiceToPrisma, mapStatusToPrisma } from '@/features/clients/mappers'
+import { normalizeEmail, normalizeInstagram, normalizeWebsite, normalizeWhatsApp } from '@/features/clients/normalizers'
 import { clientPayloadSchema } from '@/features/clients/schemas'
 import { createCrudNotification } from '@/lib/notifications'
 
@@ -42,9 +43,11 @@ export async function POST(request: Request) {
       data: {
         companyName: parsed.data.company,
         contactPerson: parsed.data.contact,
-        email: parsed.data.email,
+        email: normalizeEmail(parsed.data.email),
         phone: parsed.data.phone,
-        instagram: parsed.data.instagram || null,
+        instagram: normalizeInstagram(parsed.data.instagram),
+        whatsapp: normalizeWhatsApp(parsed.data.whatsapp),
+        website: normalizeWebsite(parsed.data.website),
         serviceType: mapServiceToPrisma(parsed.data.service),
         status: mapStatusToPrisma(parsed.data.status),
         notes: parsed.data.notes || null,

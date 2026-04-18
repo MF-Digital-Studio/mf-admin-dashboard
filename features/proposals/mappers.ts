@@ -30,7 +30,7 @@ export function mapProposalStatusToPrisma(value: ProposalStatus): PrismaProposal
 }
 
 export function mapPrismaProposalToProposal(
-  proposal: PrismaProposalModel & { client: { id: string; companyName: string; instagram: string | null; contactPerson: string; email: string; phone: string } | null }
+  proposal: PrismaProposalModel & { client: { id: string; companyName: string; instagram: string | null; contactPerson: string; email: string | null; phone: string } | null }
 ): Proposal {
   const fallbackClientName = proposal.clientCompanyName ?? 'Yeni Müşteri'
   const clientName = proposal.client?.companyName ?? fallbackClientName

@@ -37,6 +37,8 @@ export interface ClientFormValues {
   phone: string
   email: string
   instagram: string
+  whatsapp: string
+  website: string
   service: ServiceName
   status: ClientStatus
   notes: string
@@ -213,11 +215,21 @@ function ClientFields({ initialValues }: { initialValues?: ClientFormValues }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>E-posta</label>
-          <Input name="email" type="email" placeholder="ornek@firma.com" required defaultValue={initialValues?.email ?? ''} />
+          <Input name="email" type="email" placeholder="ornek@firma.com" defaultValue={initialValues?.email ?? ''} />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Instagram</label>
           <Input name="instagram" placeholder="https://instagram.com/..." defaultValue={initialValues?.instagram ?? ''} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>WhatsApp</label>
+          <Input name="whatsapp" placeholder="+90... veya https://wa.me/..." defaultValue={initialValues?.whatsapp ?? ''} />
+        </div>
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>Website</label>
+          <Input name="website" placeholder="ornek.com veya https://ornek.com" defaultValue={initialValues?.website ?? ''} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
@@ -981,6 +993,8 @@ export function CreateEntityDialog({
         phone: String(formData.get('phone') ?? ''),
         email: String(formData.get('email') ?? ''),
         instagram: String(formData.get('instagram') ?? ''),
+        whatsapp: String(formData.get('whatsapp') ?? ''),
+        website: String(formData.get('website') ?? ''),
         service: String(formData.get('service') ?? 'Web Design') as ServiceName,
         status: String(formData.get('status') ?? 'Lead') as ClientStatus,
         notes: String(formData.get('notes') ?? ''),

@@ -9,6 +9,7 @@ import {
   mapServiceToPrisma,
   mapStatusToPrisma,
 } from '@/features/clients/mappers'
+import { normalizeEmail, normalizeInstagram, normalizeWebsite, normalizeWhatsApp } from '@/features/clients/normalizers'
 import { clientPayloadSchema } from '@/features/clients/schemas'
 import { createCrudNotification } from '@/lib/notifications'
 
@@ -88,9 +89,11 @@ export async function PATCH(request: Request, { params }: Params) {
 
   if (parsed.data.company !== undefined) data.companyName = parsed.data.company
   if (parsed.data.contact !== undefined) data.contactPerson = parsed.data.contact
-  if (parsed.data.email !== undefined) data.email = parsed.data.email
+  if (parsed.data.email !== undefined) data.email = normalizeEmail(parsed.data.email)
   if (parsed.data.phone !== undefined) data.phone = parsed.data.phone
-  if (parsed.data.instagram !== undefined) data.instagram = parsed.data.instagram || null
+  if (parsed.data.instagram !== undefined) data.instagram = normalizeInstagram(parsed.data.instagram)
+  if (parsed.data.whatsapp !== undefined) data.whatsapp = normalizeWhatsApp(parsed.data.whatsapp)
+  if (parsed.data.website !== undefined) data.website = normalizeWebsite(parsed.data.website)
   if (parsed.data.service !== undefined) data.serviceType = mapServiceToPrisma(parsed.data.service)
   if (parsed.data.status !== undefined) data.status = mapStatusToPrisma(parsed.data.status)
   if (parsed.data.notes !== undefined) data.notes = parsed.data.notes || null

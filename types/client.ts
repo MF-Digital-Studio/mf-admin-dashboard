@@ -6,9 +6,11 @@ export interface Client {
   id: string
   company: string
   contact: string
-  email: string
+  email?: string
   phone: string
   instagram?: string
+  whatsapp?: string
+  website?: string
   services: ServiceName[]
   status: ClientStatus
   activeProjects: number
