@@ -14,6 +14,11 @@ export async function GET() {
           companyName: true,
         },
       },
+      tasks: {
+        select: {
+          status: true,
+        },
+      },
     },
     orderBy: {
       createdAt: 'desc',
@@ -42,7 +47,6 @@ export async function POST(request: Request) {
         budget: parsed.data.budget,
         startDate: new Date(parsed.data.startDate),
         deadline: new Date(parsed.data.deadline),
-        progress: parsed.data.progress,
         notes: parsed.data.description || null,
       },
       include: {
@@ -50,6 +54,11 @@ export async function POST(request: Request) {
           select: {
             id: true,
             companyName: true,
+          },
+        },
+        tasks: {
+          select: {
+            status: true,
           },
         },
       },

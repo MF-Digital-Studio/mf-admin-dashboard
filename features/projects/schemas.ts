@@ -15,7 +15,6 @@ export const projectPayloadSchema = z.object({
   budget: z.coerce.number().min(0, 'Budget must be >= 0'),
   startDate: z.string().trim().regex(datePattern, 'Start date is required'),
   deadline: z.string().trim().regex(datePattern, 'Deadline is required'),
-  progress: z.coerce.number().int().min(0).max(100),
   description: z.string().trim().max(4000).optional().default(''),
 })
 

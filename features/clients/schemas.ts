@@ -8,6 +8,7 @@ export const clientPayloadSchema = z.object({
   contact: z.string().trim().min(2, 'Contact is required').max(120),
   email: z.string().trim().email('Invalid email'),
   phone: z.string().trim().min(7, 'Phone is required').max(30),
+  instagram: z.string().trim().max(250).optional().default(''),
   service: z.enum(serviceNames),
   status: z.enum(clientStatuses),
   notes: z.string().trim().max(2000).optional().default(''),

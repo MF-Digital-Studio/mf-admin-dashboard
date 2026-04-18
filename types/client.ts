@@ -8,6 +8,7 @@ export interface Client {
   contact: string
   email: string
   phone: string
+  instagram?: string
   services: ServiceName[]
   status: ClientStatus
   activeProjects: number
@@ -17,4 +18,3 @@ export interface Client {
   notes: string
   location: string
 }
-

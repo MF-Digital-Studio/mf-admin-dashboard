@@ -13,7 +13,7 @@ export interface Project {
   budget: number
   status: ProjectStatus
   priority: PriorityLevel
-  progress: number
+  taskCount: number
+  completedTaskCount: number
   description: string
 }
-

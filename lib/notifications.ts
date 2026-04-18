@@ -1,4 +1,4 @@
-import { type Notification, NotificationEntityType, NotificationEventType } from '@prisma/client'
+import { type Notification as PrismaNotification, NotificationEntityType, NotificationEventType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { ActivityItem } from '@/types'
 
@@ -45,6 +45,14 @@ function toDateKey(value: Date): string {
   return value.toISOString().slice(0, 10)
 }
 
+interface NotificationActivityRow {
+  id: string
+  title: string
+  message: string
+  entityType: NotificationEntityType
+  createdAt: Date
+}
+
 export interface CreateNotificationInput {
   title: string
   message: string
@@ -54,7 +62,7 @@ export interface CreateNotificationInput {
   dedupeKey?: string
 }
 
-export async function createNotification(input: CreateNotificationInput): Promise<Notification | null> {
+export async function createNotification(input: CreateNotificationInput): Promise<PrismaNotification | null> {
   try {
     if (input.dedupeKey) {
       return await prisma.notification.upsert({
@@ -108,7 +116,7 @@ export async function createCrudNotification(args: {
   })
 }
 
-export function mapNotificationToActivityItem(notification: Notification): ActivityItem {
+export function mapNotificationToActivityItem(notification: NotificationActivityRow): ActivityItem {
   return {
     id: notification.id,
     action: notification.title,
@@ -124,6 +132,16 @@ export async function listRecentNotifications(limit = 6) {
       where: {
         hiddenFromBell: false,
       },
+      select: {
+        id: true,
+        title: true,
+        message: true,
+        eventType: true,
+        entityType: true,
+        entityId: true,
+        read: true,
+        createdAt: true,
+      },
       orderBy: { createdAt: 'desc' },
       take: limit,
     })
@@ -135,13 +153,22 @@ export async function listRecentNotifications(limit = 6) {
       eventType: notification.eventType,
       entityType: notification.entityType,
       entityId: notification.entityId,
-      read: notification.read,
+      read: Boolean(notification.read),
       createdAt: notification.createdAt.toISOString(),
       time: formatRelativeTime(notification.createdAt),
     }))
   } catch {
     try {
       const notifications = await prisma.notification.findMany({
+        select: {
+          id: true,
+          title: true,
+          message: true,
+          eventType: true,
+          entityType: true,
+          entityId: true,
+          createdAt: true,
+        },
         orderBy: { createdAt: 'desc' },
         take: limit,
       })
@@ -153,7 +180,7 @@ export async function listRecentNotifications(limit = 6) {
         eventType: notification.eventType,
         entityType: notification.entityType,
         entityId: notification.entityId,
-        read: notification.read,
+        read: false,
         createdAt: notification.createdAt.toISOString(),
         time: formatRelativeTime(notification.createdAt),
       }))
@@ -181,6 +208,13 @@ export async function clearBellNotifications() {
 export async function listRecentActivities(limit = 6) {
   try {
     const notifications = await prisma.notification.findMany({
+      select: {
+        id: true,
+        title: true,
+        message: true,
+        entityType: true,
+        createdAt: true,
+      },
       orderBy: {
         createdAt: 'desc',
       },

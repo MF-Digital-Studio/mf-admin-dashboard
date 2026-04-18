@@ -131,7 +131,13 @@ export function ProposalsPage() {
     : activeProposal
       ? {
         title: activeProposal.title,
-        clientId: activeProposal.clientId,
+        clientMode: activeProposal.clientId ? 'existing' : 'new',
+        clientId: activeProposal.clientId ?? '',
+        newClientCompany: activeProposal.clientId ? '' : activeProposal.client,
+        newClientContact: activeProposal.clientContact ?? '',
+        newClientEmail: activeProposal.clientEmail ?? '',
+        newClientPhone: activeProposal.clientPhone ?? '',
+        newClientInstagram: activeProposal.clientInstagram ?? '',
         amount: activeProposal.amount,
         sentDate: activeProposal.sentDate ?? '',
         status: activeProposal.status,
@@ -139,6 +145,18 @@ export function ProposalsPage() {
         notes: activeProposal.notes ?? '',
       }
       : undefined
+
+  const handleConvertProposalClient = async (proposal: Proposal) => {
+    setError(null)
+    try {
+      await fetchJson(`/api/proposals/${proposal.id}/convert-client`, { method: 'POST' })
+      await loadProposals()
+      toast.success('Teklif müşterisi müşteri listesine eklendi')
+      emitDashboardDataRefresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to convert proposal client')
+    }
+  }
 
   const handleCreateProposal = async (payload: ProposalFormValues) => {
     setError(null)
@@ -302,7 +320,14 @@ export function ProposalsPage() {
                         <p className="font-medium text-foreground">{proposal.title}</p>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground">{proposal.client}</td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      <div>
+                        <p>{proposal.client}</p>
+                        {proposal.clientInstagram && (
+                          <p className="text-xs text-muted-foreground/80">{proposal.clientInstagram}</p>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 font-bold text-foreground">{formatCurrency(proposal.amount)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{proposal.sentDate ?? '-'}</td>
                     <td className="px-4 py-3">
@@ -325,7 +350,13 @@ export function ProposalsPage() {
                           mode="edit"
                           proposalInitialValues={activeProposalId === proposal.id ? activeEditableValues : {
                             title: proposal.title,
-                            clientId: proposal.clientId,
+                            clientMode: proposal.clientId ? 'existing' : 'new',
+                            clientId: proposal.clientId ?? '',
+                            newClientCompany: proposal.clientId ? '' : proposal.client,
+                            newClientContact: proposal.clientContact ?? '',
+                            newClientEmail: proposal.clientEmail ?? '',
+                            newClientPhone: proposal.clientPhone ?? '',
+                            newClientInstagram: proposal.clientInstagram ?? '',
                             amount: proposal.amount,
                             sentDate: proposal.sentDate ?? '',
                             status: proposal.status,
@@ -349,6 +380,11 @@ export function ProposalsPage() {
                         <Button size="sm" variant="outline" className="h-7 border-red-500/30 px-2 text-red-300 hover:bg-red-500/10" onClick={() => void handleDeleteProposal(proposal)}>
                           Sil
                         </Button>
+                        {proposal.status === 'Accepted' && !proposal.clientId && (
+                          <Button size="sm" variant="outline" className="h-7 border-emerald-500/30 px-2 text-emerald-300 hover:bg-emerald-500/10" onClick={() => void handleConvertProposalClient(proposal)}>
+                            Müşteriye Dönüştür
+                          </Button>
+                        )}
                       </div>
                     </td>
                   </tr>

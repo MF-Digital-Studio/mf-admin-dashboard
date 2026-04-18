@@ -26,7 +26,11 @@ export async function GET(_: Request, { params }: Params) {
           id: true,
           name: true,
           status: true,
-          progress: true,
+          tasks: {
+            select: {
+              status: true,
+            },
+          },
         },
         orderBy: {
           createdAt: 'desc',
@@ -51,10 +55,18 @@ export async function GET(_: Request, { params }: Params) {
     return NextResponse.json({ message: 'Client not found' }, { status: 404 })
   }
 
+  const projectsWithTaskSummary = client.projects.map((project) => ({
+    id: project.id,
+    name: project.name,
+    status: project.status,
+    taskCount: project.tasks.length,
+    completedTaskCount: project.tasks.filter((task) => task.status === 'DONE').length,
+  }))
+
   return NextResponse.json({
     client: mapPrismaClientToClientSummary(client),
     editable: mapPrismaClientToEditable(client),
-    projects: client.projects.map(mapPrismaProjectToClientDetail),
+    projects: projectsWithTaskSummary.map(mapPrismaProjectToClientDetail),
     payments: client.payments.map(mapPrismaPaymentToClientDetail),
   })
 }
@@ -78,6 +90,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (parsed.data.contact !== undefined) data.contactPerson = parsed.data.contact
   if (parsed.data.email !== undefined) data.email = parsed.data.email
   if (parsed.data.phone !== undefined) data.phone = parsed.data.phone
+  if (parsed.data.instagram !== undefined) data.instagram = parsed.data.instagram || null
   if (parsed.data.service !== undefined) data.serviceType = mapServiceToPrisma(parsed.data.service)
   if (parsed.data.status !== undefined) data.status = mapStatusToPrisma(parsed.data.status)
   if (parsed.data.notes !== undefined) data.notes = parsed.data.notes || null

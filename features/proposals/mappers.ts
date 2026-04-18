@@ -30,13 +30,24 @@ export function mapProposalStatusToPrisma(value: ProposalStatus): PrismaProposal
 }
 
 export function mapPrismaProposalToProposal(
-  proposal: PrismaProposalModel & { client: { id: string; companyName: string } }
+  proposal: PrismaProposalModel & { client: { id: string; companyName: string; instagram: string | null; contactPerson: string; email: string; phone: string } | null }
 ): Proposal {
+  const fallbackClientName = proposal.clientCompanyName ?? 'Yeni Müşteri'
+  const clientName = proposal.client?.companyName ?? fallbackClientName
+  const clientInstagram = proposal.client?.instagram ?? proposal.clientInstagram ?? ''
+  const clientContact = proposal.client?.contactPerson ?? proposal.clientContactPerson ?? ''
+  const clientEmail = proposal.client?.email ?? proposal.clientEmail ?? ''
+  const clientPhone = proposal.client?.phone ?? proposal.clientPhone ?? ''
+
   return {
     id: proposal.id,
     title: proposal.title,
-    client: proposal.client.companyName,
+    client: clientName,
     clientId: proposal.clientId,
+    clientInstagram,
+    clientContact,
+    clientEmail,
+    clientPhone,
     amount: Number(proposal.amount.toString()),
     sentDate: toDateString(proposal.sentDate),
     status: statusToUi[proposal.status],
@@ -46,9 +57,17 @@ export function mapPrismaProposalToProposal(
 }
 
 export function mapPrismaProposalToEditable(proposal: PrismaProposalModel) {
+  const hasManualClient = !proposal.clientId
+
   return {
     title: proposal.title,
-    clientId: proposal.clientId,
+    clientMode: hasManualClient ? 'new' : 'existing',
+    clientId: proposal.clientId ?? '',
+    newClientCompany: proposal.clientCompanyName ?? '',
+    newClientContact: proposal.clientContactPerson ?? '',
+    newClientEmail: proposal.clientEmail ?? '',
+    newClientPhone: proposal.clientPhone ?? '',
+    newClientInstagram: proposal.clientInstagram ?? '',
     amount: Number(proposal.amount.toString()),
     sentDate: toDateString(proposal.sentDate) ?? '',
     status: statusToUi[proposal.status],

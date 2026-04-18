@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronRight, Mail, MapPin, Phone, X } from 'lucide-react'
+import { ChevronRight, Instagram, Mail, MapPin, Phone, X } from 'lucide-react'
 import { BadgePill, StatusBadge } from '@/components/shared/badges'
 import InlineSelect from '@/components/ui/inline-select'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -37,7 +37,7 @@ const serviceLabelMap: Record<ServiceName, string> = {
 type ClientDetailsResponse = {
   client: Client
   editable: ClientFormValues
-  projects: Array<Pick<Project, 'id' | 'name' | 'status' | 'progress'>>
+  projects: Array<Pick<Project, 'id' | 'name' | 'status' | 'taskCount' | 'completedTaskCount'>>
   payments: Array<Pick<Payment, 'id' | 'date' | 'status' | 'amount'>>
 }
 
@@ -145,6 +145,7 @@ export function ClientsPage() {
         contact: selectedClient.contact,
         phone: selectedClient.phone,
         email: selectedClient.email,
+        instagram: selectedClient.instagram ?? '',
         service: selectedClient.services[0] ?? 'Web Design',
         status: selectedClient.status,
         notes: selectedClient.notes ?? '',
@@ -202,21 +203,6 @@ export function ClientsPage() {
 
     // show a confirm dialog instead of native confirm
     setConfirmOpen(true)
-    return
-
-    setError(null)
-    try {
-      await fetchJson(`/api/clients/${selectedClient.id}`, {
-        method: 'DELETE',
-      })
-      setSelected(null)
-      setSelectedDetails(null)
-      await loadClients()
-      toast.success('Müşteri silindi')
-      emitDashboardDataRefresh()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to delete client')
-    }
   }
 
   const doDeleteClient = async () => {
@@ -398,6 +384,12 @@ export function ClientsPage() {
                   <span className="w-4 h-4 rounded bg-secondary flex items-center justify-center"><Phone className="w-2.5 h-2.5 text-muted-foreground" /></span>
                   {selectedClient.phone}
                 </div>
+                {selectedClient.instagram && (
+                  <div className="flex items-center gap-2 text-sm text-foreground">
+                    <span className="w-4 h-4 rounded bg-secondary flex items-center justify-center"><Instagram className="w-2.5 h-2.5 text-muted-foreground" /></span>
+                    <span className="truncate">{selectedClient.instagram}</span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -425,9 +417,11 @@ export function ClientsPage() {
                         <StatusBadge status={project.status} />
                       </div>
                       <div className="w-full bg-border rounded-full h-1">
-                        <div className="h-1 rounded-full bg-primary transition-all" style={{ width: `${project.progress}%` }} />
+                        <div className="h-1 rounded-full bg-primary transition-all" style={{ width: `${project.taskCount === 0 ? 0 : (project.completedTaskCount / project.taskCount) * 100}%` }} />
                       </div>
-                      <p className="text-sm text-muted-foreground mt-1">%{project.progress} tamamlandı</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Alt görevler: {project.completedTaskCount}/{project.taskCount}
+                      </p>
                     </div>
                   ))
                 ) : (
@@ -484,3 +478,4 @@ export function ClientsPage() {
     </div>
   )
 }
+

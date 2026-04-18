@@ -3,17 +3,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AreaChart, Area, CartesianGrid, Cell, PieChart, Pie, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { AlertCircle, DollarSign, Percent, Star, Target, TrendingDown, TrendingUp } from 'lucide-react'
-import { StatusBadge } from '@/components/shared/badges'
 import InlineSelect from '@/components/ui/inline-select'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatCard } from '@/components/shared/stat-card'
 import { TableWrapper } from '@/components/shared/table-wrapper'
 import { Button } from '@/components/ui/button'
-import { CreateEntityDialog, type PaymentFormValues } from '@/components/shared/create-entity-dialog'
+import { CreateEntityDialog, type PaymentFormValues, type SubscriptionFormValues } from '@/components/shared/create-entity-dialog'
 import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 import { formatCompactCurrency, formatCurrency } from '@/lib/format'
-import type { Payment, ServiceName } from '@/types'
+import type { CompanySubscription, Payment, ServiceName } from '@/types'
 import { toast } from 'sonner'
 
 const COLORS = ['#3b82f6', '#22c55e', '#f97316', '#a855f7', '#06b6d4']
@@ -21,6 +20,11 @@ const COLORS = ['#3b82f6', '#22c55e', '#f97316', '#a855f7', '#06b6d4']
 type PaymentDetailsResponse = {
   payment: Payment
   editable: PaymentFormValues
+}
+
+type SubscriptionDetailsResponse = {
+  subscription: CompanySubscription
+  editable: SubscriptionFormValues
 }
 
 type RevenuePoint = {
@@ -35,17 +39,23 @@ type BreakdownPoint = {
 }
 
 const serviceLabelMap: Record<ServiceName, string> = {
-  'Web Design': 'Web Tasarım',
+  'Web Design': 'Web Tasarim',
   SEO: 'SEO',
-  'QR Menu': 'QR Menü',
+  'QR Menu': 'QR Menu',
   'E-commerce': 'E-ticaret',
 }
 
 const categoryLabelMap: Record<ServiceName, string> = {
-  'Web Design': 'Web Tasarım',
+  'Web Design': 'Web Tasarim',
   SEO: 'SEO',
-  'QR Menu': 'QR Menü',
+  'QR Menu': 'QR Menu',
   'E-commerce': 'E-ticaret',
+}
+
+const billingCycleLabelMap: Record<CompanySubscription['billingCycle'], string> = {
+  Monthly: 'Aylik',
+  Quarterly: '3 Aylik',
+  Yearly: 'Yillik',
 }
 
 const CustomTooltip = ({ active, payload, label }: any) => {
@@ -74,14 +84,16 @@ function monthLabel(date: Date): string {
 }
 
 function toDateSafe(dateString: string): Date | null {
-  if (!dateString || dateString === '-') {
-    return null
-  }
+  if (!dateString || dateString === '-') return null
   const date = new Date(dateString)
-  if (Number.isNaN(date.getTime())) {
-    return null
-  }
+  if (Number.isNaN(date.getTime())) return null
   return date
+}
+
+function toMonthlyAmount(subscription: CompanySubscription): number {
+  if (subscription.billingCycle === 'Yearly') return subscription.amount / 12
+  if (subscription.billingCycle === 'Quarterly') return subscription.amount / 3
+  return subscription.amount
 }
 
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
@@ -90,26 +102,39 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
     const data = (await response.json().catch(() => null)) as { message?: string } | null
     throw new Error(data?.message ?? 'Request failed')
   }
-
   return (await response.json()) as T
 }
 
 export function FinancePage() {
   const [payments, setPayments] = useState<Payment[]>([])
+  const [subscriptions, setSubscriptions] = useState<CompanySubscription[]>([])
   const [activePaymentId, setActivePaymentId] = useState<string | null>(null)
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetailsResponse | null>(null)
+  const [activeSubscriptionId, setActiveSubscriptionId] = useState<string | null>(null)
+  const [subscriptionDetails, setSubscriptionDetails] = useState<SubscriptionDetailsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [confirmPayment, setConfirmPayment] = useState<null | { id: string; title: string }>(null)
+  const [confirmSubscription, setConfirmSubscription] = useState<null | { id: string; title: string }>(null)
 
   const loadPayments = useCallback(async () => {
     const data = await fetchJson<Payment[]>('/api/payments')
     setPayments(data)
   }, [])
 
+  const loadSubscriptions = useCallback(async () => {
+    const data = await fetchJson<CompanySubscription[]>('/api/subscriptions')
+    setSubscriptions(data)
+  }, [])
+
   const loadPaymentDetails = useCallback(async (paymentId: string) => {
     const data = await fetchJson<PaymentDetailsResponse>(`/api/payments/${paymentId}`)
     setPaymentDetails(data)
+  }, [])
+
+  const loadSubscriptionDetails = useCallback(async (subscriptionId: string) => {
+    const data = await fetchJson<SubscriptionDetailsResponse>(`/api/subscriptions/${subscriptionId}`)
+    setSubscriptionDetails(data)
   }, [])
 
   useEffect(() => {
@@ -118,18 +143,20 @@ export function FinancePage() {
       setIsLoading(true)
       setError(null)
       try {
-        const data = await fetchJson<Payment[]>('/api/payments')
+        const [paymentsData, subscriptionsData] = await Promise.all([
+          fetchJson<Payment[]>('/api/payments'),
+          fetchJson<CompanySubscription[]>('/api/subscriptions'),
+        ])
         if (mounted) {
-          setPayments(data)
+          setPayments(paymentsData)
+          setSubscriptions(subscriptionsData)
         }
       } catch (err) {
         if (mounted) {
-          setError(err instanceof Error ? err.message : 'Failed to load payments')
+          setError(err instanceof Error ? err.message : 'Failed to load finance data')
         }
       } finally {
-        if (mounted) {
-          setIsLoading(false)
-        }
+        if (mounted) setIsLoading(false)
       }
     }
 
@@ -144,12 +171,12 @@ export function FinancePage() {
     const monthAmounts = new Map<string, number>()
     for (const payment of payments.filter((p) => p.status === 'Paid')) {
       const date = toDateSafe(payment.date)
-      if (!date) {
-        continue
-      }
+      if (!date) continue
       const key = monthKey(date)
       monthAmounts.set(key, (monthAmounts.get(key) ?? 0) + payment.amount)
     }
+
+    const monthlySubscriptions = subscriptions.filter((s) => s.isActive).reduce((sum, s) => sum + toMonthlyAmount(s), 0)
 
     const points: RevenuePoint[] = []
     for (let i = 6; i >= 0; i -= 1) {
@@ -158,24 +185,22 @@ export function FinancePage() {
       points.push({
         month: monthLabel(date),
         revenue: Math.round(monthAmounts.get(key) ?? 0),
-        expenses: 0,
+        expenses: Math.round(monthlySubscriptions),
       })
     }
 
     return points
-  }, [payments])
+  }, [payments, subscriptions])
 
   const expenseBreakdown = useMemo(() => {
     const byCategory = new Map<string, number>()
     for (const payment of payments) {
       byCategory.set(payment.category, (byCategory.get(payment.category) ?? 0) + payment.amount)
     }
-
     const rows: BreakdownPoint[] = [...byCategory.entries()].map(([category, value]) => ({
       name: categoryLabelMap[category as ServiceName] ?? category,
       value,
     }))
-
     rows.sort((a, b) => b.value - a.value)
     return rows.slice(0, 5)
   }, [payments])
@@ -185,7 +210,6 @@ export function FinancePage() {
   const netProfit = totalRevenue - totalExpenses
   const pendingPayments = payments.filter((payment) => payment.status === 'Pending' || payment.status === 'Overdue')
   const pendingTotal = pendingPayments.reduce((sum, payment) => sum + payment.amount, 0)
-
   const paidTotal = payments.filter((payment) => payment.status === 'Paid').reduce((sum, payment) => sum + payment.amount, 0)
   const allTotal = payments.reduce((sum, payment) => sum + payment.amount, 0)
   const collectionRate = allTotal > 0 ? Math.round((paidTotal / allTotal) * 100) : 0
@@ -193,12 +217,9 @@ export function FinancePage() {
   const bestService = useMemo(() => {
     const byService = new Map<ServiceName, number>()
     for (const payment of payments.filter((payment) => payment.status === 'Paid')) {
-      const service = payment.category
-      byService.set(service, (byService.get(service) ?? 0) + payment.amount)
+      byService.set(payment.category, (byService.get(payment.category) ?? 0) + payment.amount)
     }
-    if (byService.size === 0) {
-      return { name: '-', value: 0 }
-    }
+    if (byService.size === 0) return { name: '-' as const, value: 0 }
     const [name, value] = [...byService.entries()].sort((a, b) => b[1] - a[1])[0]
     return { name, value }
   }, [payments])
@@ -208,9 +229,7 @@ export function FinancePage() {
     for (const payment of payments.filter((payment) => payment.status === 'Paid')) {
       byClient.set(payment.client, (byClient.get(payment.client) ?? 0) + payment.amount)
     }
-    if (byClient.size === 0) {
-      return { name: '-', value: 0 }
-    }
+    if (byClient.size === 0) return { name: '-', value: 0 }
     const [name, value] = [...byClient.entries()].sort((a, b) => b[1] - a[1])[0]
     return { name, value }
   }, [payments])
@@ -235,18 +254,27 @@ export function FinancePage() {
       }
       : undefined
 
+  const activeSubscription = subscriptions.find((subscription) => subscription.id === activeSubscriptionId) ?? null
+  const activeSubscriptionEditableValues: SubscriptionFormValues | undefined = subscriptionDetails?.editable
+    ? subscriptionDetails.editable
+    : activeSubscription
+      ? {
+        name: activeSubscription.name,
+        category: activeSubscription.category,
+        billingCycle: activeSubscription.billingCycle,
+        amount: activeSubscription.amount,
+        renewalDate: activeSubscription.renewalDate === '-' ? '' : activeSubscription.renewalDate,
+        isActive: activeSubscription.isActive,
+        notes: activeSubscription.notes ?? '',
+      }
+      : undefined
+
   const handleCreatePayment = async (payload: PaymentFormValues) => {
     setError(null)
     try {
-      await fetchJson('/api/payments', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
+      await fetchJson('/api/payments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       await loadPayments()
-      toast.success('Ödeme kaydı oluşturuldu')
+      toast.success('Odeme kaydi olusturuldu')
       emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create payment'
@@ -256,24 +284,44 @@ export function FinancePage() {
   }
 
   const handleUpdatePayment = async (payload: PaymentFormValues) => {
-    if (!activePaymentId) {
-      return
-    }
-
+    if (!activePaymentId) return
     setError(null)
     try {
-      await fetchJson(`/api/payments/${activePaymentId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      })
+      await fetchJson(`/api/payments/${activePaymentId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
       await Promise.all([loadPayments(), loadPaymentDetails(activePaymentId)])
-      toast.success('Ödeme kaydı güncellendi')
+      toast.success('Odeme kaydi guncellendi')
       emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update payment'
+      setError(message)
+      throw err
+    }
+  }
+
+  const handleCreateSubscription = async (payload: SubscriptionFormValues) => {
+    setError(null)
+    try {
+      await fetchJson('/api/subscriptions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      await loadSubscriptions()
+      toast.success('Abonelik eklendi')
+      emitDashboardDataRefresh()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create subscription'
+      setError(message)
+      throw err
+    }
+  }
+
+  const handleUpdateSubscription = async (payload: SubscriptionFormValues) => {
+    if (!activeSubscriptionId) return
+    setError(null)
+    try {
+      await fetchJson(`/api/subscriptions/${activeSubscriptionId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
+      await Promise.all([loadSubscriptions(), loadSubscriptionDetails(activeSubscriptionId)])
+      toast.success('Abonelik guncellendi')
+      emitDashboardDataRefresh()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update subscription'
       setError(message)
       throw err
     }
@@ -293,14 +341,35 @@ export function FinancePage() {
         setPaymentDetails(null)
       }
       await loadPayments()
-      toast.success('Ödeme kaydı silindi')
+      toast.success('Odeme kaydi silindi')
       emitDashboardDataRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete payment')
     }
   }
 
-  const openEdit = async (paymentId: string) => {
+  const handleDeleteSubscription = async (subscription: CompanySubscription) => {
+    setConfirmSubscription({ id: subscription.id, title: subscription.name })
+  }
+
+  const doDeleteSubscription = async (id: string) => {
+    setConfirmSubscription(null)
+    setError(null)
+    try {
+      await fetchJson(`/api/subscriptions/${id}`, { method: 'DELETE' })
+      if (activeSubscriptionId === id) {
+        setActiveSubscriptionId(null)
+        setSubscriptionDetails(null)
+      }
+      await loadSubscriptions()
+      toast.success('Abonelik silindi')
+      emitDashboardDataRefresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete subscription')
+    }
+  }
+
+  const openEditPayment = async (paymentId: string) => {
     setActivePaymentId(paymentId)
     setError(null)
     try {
@@ -310,31 +379,44 @@ export function FinancePage() {
     }
   }
 
+  const openEditSubscription = async (subscriptionId: string) => {
+    setActiveSubscriptionId(subscriptionId)
+    setError(null)
+    try {
+      await loadSubscriptionDetails(subscriptionId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load subscription details')
+    }
+  }
+
   return (
     <div className="p-4 sm:p-6 space-y-6 overflow-y-auto h-full">
       <PageHeader
         title="Finans"
-        description="Canlı ödeme ve tahsilat özeti"
+        description="Canli odeme ve gider ozeti"
         action={
-          <CreateEntityDialog
-            entity="payment"
-            trigger={<Button size="sm" className="h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90">+ Yeni Ödeme</Button>}
-            onPaymentSubmit={handleCreatePayment}
-          />
+          <div className="flex gap-2">
+            <CreateEntityDialog
+              entity="subscription"
+              trigger={<Button size="sm" variant="outline" className="h-8 text-sm border-border">+ Yeni Abonelik</Button>}
+              onSubscriptionSubmit={handleCreateSubscription}
+            />
+            <CreateEntityDialog
+              entity="payment"
+              trigger={<Button size="sm" className="h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90">+ Yeni Odeme</Button>}
+              onPaymentSubmit={handleCreatePayment}
+            />
+          </div>
         }
       />
 
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-          {error}
-        </div>
-      )}
+      {error && <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         <StatCard
-          label="Aylık Gelir"
+          label="Aylik Gelir"
           value={formatCurrency(totalRevenue)}
-          subtext={`Geçen aya göre ${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`}
+          subtext={`Gecen aya gore ${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`}
           subtextClassName="text-emerald-400"
           icon={DollarSign}
           iconToneClassName="text-emerald-400"
@@ -343,16 +425,16 @@ export function FinancePage() {
           trendIconClassName="text-emerald-400"
         />
         <StatCard
-          label="Aylık Gider"
+          label="Aylik Gider"
           value={formatCurrency(totalExpenses)}
-          subtext="Gider modeli henüz bağlanmadı"
+          subtext={`${subscriptions.filter((subscription) => subscription.isActive).length} aktif abonelik`}
           subtextClassName="text-muted-foreground"
           icon={TrendingDown}
           iconToneClassName="text-red-400"
           iconBackgroundClassName="bg-red-500/10"
         />
         <StatCard
-          label="Net Kâr (Tahmini)"
+          label="Net Kar (Tahmini)"
           value={formatCurrency(netProfit)}
           subtext={totalRevenue > 0 ? `%${Math.round((netProfit / totalRevenue) * 100)} marj` : '%0 marj'}
           subtextClassName="text-primary"
@@ -361,9 +443,9 @@ export function FinancePage() {
           iconBackgroundClassName="bg-primary/10"
         />
         <StatCard
-          label="Bekleyen Faturalar"
+          label="Bekleyen Odemeler"
           value={formatCurrency(pendingTotal)}
-          subtext={`${pendingPayments.length} açık kayıt`}
+          subtext={`${pendingPayments.length} acik kayit`}
           subtextClassName="text-yellow-400"
           icon={AlertCircle}
           iconToneClassName="text-yellow-400"
@@ -388,13 +470,14 @@ export function FinancePage() {
               <YAxis tick={{ fontSize: 11, fill: 'oklch(0.52 0.01 264)' }} axisLine={false} tickLine={false} tickFormatter={(value) => `₺${(value / 1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
               <Area type="monotone" dataKey="revenue" name="Gelir" stroke="oklch(0.65 0.20 250)" strokeWidth={2} fill="url(#revGrad2)" />
+              <Area type="monotone" dataKey="expenses" name="Gider" stroke="oklch(0.70 0.16 30)" strokeWidth={2} fillOpacity={0} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         <div className="bg-card border border-border rounded-xl p-5">
-          <h3 className="text-base font-semibold text-foreground mb-1">Kategori Dağılımı</h3>
-          <p className="text-sm text-muted-foreground mb-3">Ödemelere göre</p>
+          <h3 className="text-base font-semibold text-foreground mb-1">Kategori Dagilimi</h3>
+          <p className="text-sm text-muted-foreground mb-3">Odemelere gore</p>
           <ResponsiveContainer width="100%" height={160}>
             <PieChart>
               <Pie data={expenseBreakdown} cx="50%" cy="50%" innerRadius={40} outerRadius={60} paddingAngle={2} dataKey="value">
@@ -415,17 +498,17 @@ export function FinancePage() {
                 <span className="font-semibold text-foreground">{formatCurrency(expense.value)}</span>
               </div>
             ))}
-            {expenseBreakdown.length === 0 && <p className="text-sm text-muted-foreground">Henüz ödeme verisi yok</p>}
+            {expenseBreakdown.length === 0 && <p className="text-sm text-muted-foreground">Henuz odeme verisi yok</p>}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
         {[
-          { icon: Star, label: 'En İyi Hizmet', value: bestService.name === '-' ? '-' : serviceLabelMap[bestService.name as ServiceName], sub: formatCurrency(bestService.value), color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
-          { icon: Target, label: 'En İyi Müşteri', value: bestClient.name, sub: formatCurrency(bestClient.value), color: 'text-primary', bg: 'bg-primary/10' },
-          { icon: Percent, label: 'Tahsilat Oranı', value: `%${collectionRate}`, sub: `${formatCurrency(pendingTotal)} bekliyor`, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
-          { icon: TrendingUp, label: 'Aylık Büyüme', value: `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`, sub: 'Ödeme gelirine göre', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+          { icon: Star, label: 'En Iyi Hizmet', value: bestService.name === '-' ? '-' : serviceLabelMap[bestService.name as ServiceName], sub: formatCurrency(bestService.value), color: 'text-yellow-400', bg: 'bg-yellow-500/10' },
+          { icon: Target, label: 'En Iyi Musteri', value: bestClient.name, sub: formatCurrency(bestClient.value), color: 'text-primary', bg: 'bg-primary/10' },
+          { icon: Percent, label: 'Tahsilat Orani', value: `%${collectionRate}`, sub: `${formatCurrency(pendingTotal)} bekliyor`, color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
+          { icon: TrendingUp, label: 'Aylik Buyume', value: `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`, sub: 'Odeme gelirine gore', color: 'text-emerald-400', bg: 'bg-emerald-500/10' },
         ].map((card) => (
           <div key={card.label} className="bg-card border border-border rounded-xl p-4">
             <div className={`w-8 h-8 rounded-lg ${card.bg} flex items-center justify-center mb-3`}>
@@ -438,12 +521,12 @@ export function FinancePage() {
         ))}
       </div>
 
-      <TableWrapper title="Ödeme Kayıtları">
+      <TableWrapper title="Odeme Kayitlari">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] text-sm">
             <thead>
               <tr className="border-b border-border">
-                {['Müşteri', 'Kategori', 'Tutar', 'Tarih', 'Yöntem', 'Durum', 'İşlemler'].map((heading) => (
+                {['Musteri', 'Kategori', 'Tutar', 'Tarih', 'Yontem', 'Durum', 'Islemler'].map((heading) => (
                   <th key={heading} className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 py-3">{heading}</th>
                 ))}
               </tr>
@@ -460,11 +543,11 @@ export function FinancePage() {
                     <td className="px-4 py-3">
                       <InlineSelect
                         value={payment.status}
-                        options={[{ value: 'Pending', label: 'Beklemede' }, { value: 'Paid', label: 'Ödendi' }, { value: 'Overdue', label: 'Gecikmiş' }]}
+                        options={[{ value: 'Pending', label: 'Beklemede' }, { value: 'Paid', label: 'Odendi' }, { value: 'Overdue', label: 'Gecikmis' }]}
                         onChange={async (val) => {
                           await fetchJson(`/api/payments/${payment.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: val }) })
                           await loadPayments()
-                          toast.success('Durum güncellendi')
+                          toast.success('Durum guncellendi')
                           emitDashboardDataRefresh()
                         }}
                       />
@@ -486,15 +569,8 @@ export function FinancePage() {
                           }}
                           onPaymentSubmit={handleUpdatePayment}
                           trigger={
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 border-border px-2"
-                              onClick={() => {
-                                void openEdit(payment.id)
-                              }}
-                            >
-                              Düzenle
+                            <Button size="sm" variant="outline" className="h-7 border-border px-2" onClick={() => void openEditPayment(payment.id)}>
+                              Duzenle
                             </Button>
                           }
                         />
@@ -508,24 +584,72 @@ export function FinancePage() {
             </tbody>
           </table>
         </div>
-        {isLoading && (
-          <div className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">Ödemeler yükleniyor...</p>
-          </div>
-        )}
-        {!isLoading && payments.length === 0 && (
-          <div className="py-12 text-center">
-            <p className="text-sm text-muted-foreground">Ödeme kaydı bulunamadı</p>
-          </div>
-        )}
+        {isLoading && <div className="py-12 text-center"><p className="text-sm text-muted-foreground">Odemeler yukleniyor...</p></div>}
+        {!isLoading && payments.length === 0 && <div className="py-12 text-center"><p className="text-sm text-muted-foreground">Odeme kaydi bulunamadi</p></div>}
       </TableWrapper>
+
+      <TableWrapper title="Arac ve Sirket Abonelikleri">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[980px] text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                {['Ad', 'Kategori', 'Donem', 'Tutar', 'Yenileme', 'Durum', 'Islemler'].map((heading) => (
+                  <th key={heading} className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 py-3">{heading}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {!isLoading &&
+                subscriptions.map((subscription, index) => (
+                  <tr key={subscription.id} className={`border-b border-border/50 hover:bg-secondary/40 transition-colors ${index === subscriptions.length - 1 ? 'border-0' : ''}`}>
+                    <td className="px-4 py-3 font-medium text-foreground">{subscription.name}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{subscription.category}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{billingCycleLabelMap[subscription.billingCycle]}</td>
+                    <td className="px-4 py-3 font-bold text-foreground">{formatCurrency(subscription.amount)}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{subscription.renewalDate}</td>
+                    <td className="px-4 py-3 text-muted-foreground">{subscription.isActive ? 'Aktif' : 'Pasif'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <div className="flex gap-1.5">
+                        <CreateEntityDialog
+                          entity="subscription"
+                          mode="edit"
+                          subscriptionInitialValues={activeSubscriptionId === subscription.id ? activeSubscriptionEditableValues : {
+                            name: subscription.name,
+                            category: subscription.category,
+                            billingCycle: subscription.billingCycle,
+                            amount: subscription.amount,
+                            renewalDate: subscription.renewalDate === '-' ? '' : subscription.renewalDate,
+                            isActive: subscription.isActive,
+                            notes: subscription.notes ?? '',
+                          }}
+                          onSubscriptionSubmit={handleUpdateSubscription}
+                          trigger={
+                            <Button size="sm" variant="outline" className="h-7 border-border px-2" onClick={() => void openEditSubscription(subscription.id)}>
+                              Duzenle
+                            </Button>
+                          }
+                        />
+                        <Button size="sm" variant="outline" className="h-7 border-red-500/30 px-2 text-red-300 hover:bg-red-500/10" onClick={() => void handleDeleteSubscription(subscription)}>
+                          Sil
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+        {isLoading && <div className="py-12 text-center"><p className="text-sm text-muted-foreground">Abonelikler yukleniyor...</p></div>}
+        {!isLoading && subscriptions.length === 0 && <div className="py-12 text-center"><p className="text-sm text-muted-foreground">Abonelik kaydi bulunamadi</p></div>}
+      </TableWrapper>
+
       {confirmPayment && (
         <ConfirmDialog
           open={Boolean(confirmPayment)}
-          title="Ödeme kaydını sil"
-          description={`"${confirmPayment?.title}" kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+          title="Odeme kaydini sil"
+          description={`"${confirmPayment?.title}" kaydini silmek istediginize emin misiniz? Bu islem geri alinamaz.`}
           confirmLabel="Sil"
-          cancelLabel="İptal"
+          cancelLabel="Iptal"
           onClose={(confirmed) => {
             if (confirmed && confirmPayment) void doDeletePayment(confirmPayment.id)
             else setConfirmPayment(null)
@@ -533,26 +657,19 @@ export function FinancePage() {
         />
       )}
 
-      <TableWrapper title="Gider Kayıtları">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] text-sm">
-            <thead>
-              <tr className="border-b border-border">
-                {['Gider Adı', 'Kategori', 'Tutar', 'Tarih'].map((heading) => (
-                  <th key={heading} className="text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide px-4 py-3">{heading}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  Gider modeli henüz bağlı değil. Bu bölüm ödeme verileri dışında tutuldu.
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </TableWrapper>
+      {confirmSubscription && (
+        <ConfirmDialog
+          open={Boolean(confirmSubscription)}
+          title="Aboneligi sil"
+          description={`"${confirmSubscription?.title}" kaydini silmek istediginize emin misiniz? Bu islem geri alinamaz.`}
+          confirmLabel="Sil"
+          cancelLabel="Iptal"
+          onClose={(confirmed) => {
+            if (confirmed && confirmSubscription) void doDeleteSubscription(confirmSubscription.id)
+            else setConfirmSubscription(null)
+          }}
+        />
+      )}
     </div>
   )
 }

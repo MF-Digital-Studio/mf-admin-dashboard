@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Calendar, DollarSign, X } from 'lucide-react'
-import { tasks } from '@/features/tasks/data'
 import { BadgePill, PriorityBadge, StatusBadge } from '@/components/shared/badges'
 import InlineSelect from '@/components/ui/inline-select'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -10,11 +9,11 @@ import { FilterGroup } from '@/components/shared/filter-group'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchField } from '@/components/shared/search-field'
 import { Button } from '@/components/ui/button'
-import { CreateEntityDialog, type ProjectFormValues } from '@/components/shared/create-entity-dialog'
+import { CreateEntityDialog, type ProjectFormValues, type TaskFormValues } from '@/components/shared/create-entity-dialog'
 import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/format'
-import type { Project, ServiceName } from '@/types'
+import type { Project, ServiceName, Task } from '@/types'
 import { toast } from 'sonner'
 
 const statuses = ['All', 'Planning', 'Design', 'Development', 'Revision', 'Waiting for Client', 'Completed', 'On Hold']
@@ -38,6 +37,7 @@ const serviceLabelMap: Record<ServiceName, string> = {
 type ProjectDetailsResponse = {
   project: Project
   editable: ProjectFormValues
+  tasks: Task[]
 }
 
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
@@ -58,6 +58,7 @@ export function ProjectsPage() {
   const [serviceFilter, setServiceFilter] = useState('All')
   const [selected, setSelected] = useState<string | null>(null)
   const [selectedDetails, setSelectedDetails] = useState<ProjectDetailsResponse | null>(null)
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -122,20 +123,17 @@ export function ProjectsPage() {
   const filtered = useMemo(
     () =>
       projects.filter((project) => {
-        const matchSearch =
-          project.name.toLowerCase().includes(search.toLowerCase()) ||
-          project.client.toLowerCase().includes(search.toLowerCase())
+        const matchSearch = project.name.toLowerCase().includes(search.toLowerCase()) || project.client.toLowerCase().includes(search.toLowerCase())
         const matchStatus = statusFilter === 'All' || project.status === statusFilter
         const matchPriority = priorityFilter === 'All' || project.priority === priorityFilter
         const matchService = serviceFilter === 'All' || project.service === serviceFilter
-
         return matchSearch && matchStatus && matchPriority && matchService
       }),
     [priorityFilter, projects, search, serviceFilter, statusFilter]
   )
 
   const selectedProject = selectedDetails?.project ?? projects.find((project) => project.id === selected) ?? null
-  const projectTasks = selectedProject ? tasks.filter((task) => task.projectId === selectedProject.id) : []
+  const projectTasks = selectedDetails?.tasks ?? []
 
   const selectedEditableValues: ProjectFormValues | undefined = selectedDetails?.editable
     ? selectedDetails.editable
@@ -149,19 +147,29 @@ export function ProjectsPage() {
         budget: selectedProject.budget,
         startDate: selectedProject.startDate === '-' ? '' : selectedProject.startDate,
         deadline: selectedProject.deadline === '-' ? '' : selectedProject.deadline,
-        progress: selectedProject.progress,
         description: selectedProject.description ?? '',
       }
       : undefined
+
+  const activeTask = projectTasks.find((task) => task.id === activeTaskId) ?? null
+  const activeTaskEditableValues: TaskFormValues | undefined = activeTask
+    ? {
+      title: activeTask.title,
+      projectId: activeTask.projectId,
+      assignedTo: activeTask.assignedTo,
+      priority: activeTask.priority,
+      status: activeTask.status,
+      dueDate: activeTask.dueDate === '-' ? '' : activeTask.dueDate,
+      notes: activeTask.notes ?? '',
+    }
+    : undefined
 
   const handleCreateProject = async (payload: ProjectFormValues) => {
     setError(null)
     try {
       await fetchJson('/api/projects', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       await loadProjects()
@@ -175,17 +183,12 @@ export function ProjectsPage() {
   }
 
   const handleUpdateProject = async (payload: ProjectFormValues) => {
-    if (!selected) {
-      return
-    }
-
+    if (!selected) return
     setError(null)
     try {
       await fetchJson(`/api/projects/${selected}`, {
         method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
       await Promise.all([loadProjects(), loadProjectDetails(selected)])
@@ -218,6 +221,64 @@ export function ProjectsPage() {
     }
   }
 
+  const handleCreateSubtask = async (payload: TaskFormValues) => {
+    if (!selectedProject) return
+    setError(null)
+    try {
+      await fetchJson('/api/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...payload, projectId: selectedProject.id }),
+      })
+      await Promise.all([loadProjects(), loadProjectDetails(selectedProject.id)])
+      toast.success('Alt görev oluşturuldu')
+      emitDashboardDataRefresh()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create subtask'
+      setError(message)
+      throw err
+    }
+  }
+
+  const handleUpdateSubtask = async (payload: TaskFormValues) => {
+    if (!activeTaskId) return
+    setError(null)
+    try {
+      await fetchJson(`/api/tasks/${activeTaskId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      if (selectedProject) {
+        await Promise.all([loadProjects(), loadProjectDetails(selectedProject.id)])
+      } else {
+        await loadProjects()
+      }
+      toast.success('Alt görev güncellendi')
+      emitDashboardDataRefresh()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update subtask'
+      setError(message)
+      throw err
+    }
+  }
+
+  const handleDeleteSubtask = async (taskId: string) => {
+    setError(null)
+    try {
+      await fetchJson(`/api/tasks/${taskId}`, { method: 'DELETE' })
+      if (selectedProject) {
+        await Promise.all([loadProjects(), loadProjectDetails(selectedProject.id)])
+      } else {
+        await loadProjects()
+      }
+      toast.success('Alt görev silindi')
+      emitDashboardDataRefresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete subtask')
+    }
+  }
+
   return (
     <div className="flex h-full overflow-hidden">
       <div className={cn('flex-1 overflow-y-auto p-4 sm:p-6 space-y-5', selected && 'hidden xl:block')}>
@@ -241,9 +302,7 @@ export function ProjectsPage() {
         </div>
 
         {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            {error}
-          </div>
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">{error}</div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-3">
@@ -290,26 +349,8 @@ export function ProjectsPage() {
                   </BadgePill>
                 </div>
 
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm text-muted-foreground">İlerleme</span>
-                    <span className="text-sm font-semibold text-foreground">%{project.progress}</span>
-                  </div>
-                  <div className="w-full bg-border rounded-full h-1.5">
-                    <div
-                      className={cn(
-                        'h-1.5 rounded-full transition-all',
-                        project.progress === 100
-                          ? 'bg-emerald-500'
-                          : project.progress > 60
-                            ? 'bg-primary'
-                            : project.progress > 30
-                              ? 'bg-yellow-500'
-                              : 'bg-red-500'
-                      )}
-                      style={{ width: `${project.progress}%` }}
-                    />
-                  </div>
+                <div className="mb-3 text-sm text-muted-foreground">
+                  Alt görevler: {project.completedTaskCount}/{project.taskCount}
                 </div>
 
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
@@ -326,20 +367,12 @@ export function ProjectsPage() {
             ))}
         </div>
 
-        {isLoading && (
-          <div className="py-20 text-center">
-            <p className="text-sm text-muted-foreground">Projeler yükleniyor...</p>
-          </div>
-        )}
-        {!isLoading && filtered.length === 0 && (
-          <div className="py-20 text-center">
-            <p className="text-sm text-muted-foreground">Filtrelere uygun proje yok</p>
-          </div>
-        )}
+        {isLoading && <div className="py-20 text-center"><p className="text-sm text-muted-foreground">Projeler yükleniyor...</p></div>}
+        {!isLoading && filtered.length === 0 && <div className="py-20 text-center"><p className="text-sm text-muted-foreground">Filtrelere uygun proje yok</p></div>}
       </div>
 
       {selectedProject && (
-        <div className="w-full xl:w-[380px] border-l border-border bg-card overflow-y-auto shrink-0">
+        <div className="w-full xl:w-[420px] border-l border-border bg-card overflow-y-auto shrink-0">
           <div className="sticky top-0 bg-card border-b border-border px-5 py-4 z-10 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-foreground">Proje Detayı</h3>
@@ -381,55 +414,88 @@ export function ProjectsPage() {
                 <p className="text-base font-bold text-foreground">{formatCurrency(selectedProject.budget)}</p>
               </div>
               <div className="p-3 rounded-lg bg-secondary border border-border">
-                <p className="text-sm text-muted-foreground">İlerleme</p>
-                <p className="text-base font-bold text-foreground">%{selectedProject.progress}</p>
+                <p className="text-sm text-muted-foreground">Alt Görevler</p>
+                <p className="text-base font-bold text-foreground">{selectedProject.completedTaskCount}/{selectedProject.taskCount}</p>
               </div>
               <div className="p-3 rounded-lg bg-secondary border border-border">
-                <p className="text-sm text-muted-foreground">Başlangıç Tarihi</p>
+                <p className="text-sm text-muted-foreground">Başlangıç</p>
                 <p className="text-sm font-semibold text-foreground">{selectedProject.startDate}</p>
               </div>
               <div className="p-3 rounded-lg bg-secondary border border-border">
-                <p className="text-sm text-muted-foreground">Teslim Tarihi</p>
+                <p className="text-sm text-muted-foreground">Teslim</p>
                 <p className="text-sm font-semibold text-foreground">{selectedProject.deadline}</p>
               </div>
             </div>
 
             <div>
-              <div className="flex justify-between text-sm mb-1.5">
-                <span className="text-muted-foreground">Genel İlerleme</span>
-                <span className="font-semibold text-foreground">%{selectedProject.progress}</span>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Alt Görevler ({projectTasks.length})</p>
+                <CreateEntityDialog
+                  entity="task"
+                  onTaskSubmit={handleCreateSubtask}
+                  taskInitialValues={{
+                    title: '',
+                    projectId: selectedProject.id,
+                    assignedTo: 'Admin',
+                    priority: 'Medium',
+                    status: 'Todo',
+                    dueDate: '',
+                    notes: '',
+                  }}
+                  trigger={<Button size="sm" className="h-7 text-xs bg-primary text-primary-foreground hover:bg-primary/90">+ Alt Görev</Button>}
+                />
               </div>
-              <div className="w-full bg-border rounded-full h-2">
-                <div className="h-2 rounded-full bg-primary transition-all" style={{ width: `${selectedProject.progress}%` }} />
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2">Görevler ({projectTasks.length})</p>
               <div className="space-y-2">
                 {isDetailLoading ? (
                   <p className="text-sm text-muted-foreground">Detaylar yükleniyor...</p>
                 ) : projectTasks.length > 0 ? (
                   projectTasks.map((task) => (
-                    <div key={task.id} className="flex items-center justify-between p-2.5 rounded-lg bg-secondary border border-border">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
-                        <p className="text-sm text-muted-foreground">Teslim: {task.dueDate}</p>
+                    <div key={task.id} className="p-3 rounded-lg bg-secondary border border-border space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-sm font-medium text-foreground">{task.title}</p>
+                        <InlineSelect
+                          value={task.status}
+                          options={[{ value: 'Todo', label: 'Yapılacak' }, { value: 'In Progress', label: 'Devam' }, { value: 'Review', label: 'İncelemede' }, { value: 'Done', label: 'Tamamlandı' }, { value: 'Blocked', label: 'Engelli' }]}
+                          onChange={async (val) => {
+                            await fetchJson(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: val }) })
+                            if (selectedProject) await Promise.all([loadProjects(), loadProjectDetails(selectedProject.id)])
+                            toast.success('Durum güncellendi')
+                            emitDashboardDataRefresh()
+                          }}
+                        />
                       </div>
-                      <InlineSelect
-                        value={task.status}
-                        options={[{ value: 'Todo', label: 'Yapılacak' }, { value: 'In Progress', label: 'Devam Ediyor' }, { value: 'Review', label: 'İncelemede' }, { value: 'Done', label: 'Tamamlandı' }, { value: 'Blocked', label: 'Engelli' }]}
-                        onChange={async (val) => {
-                          await fetchJson(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: val }) })
-                          await loadProjects()
-                          toast.success('Durum güncellendi')
-                          emitDashboardDataRefresh()
-                        }}
-                      />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Teslim: {task.dueDate}</span>
+                        <span>Atanan: {task.assignedTo}</span>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <CreateEntityDialog
+                          entity="task"
+                          mode="edit"
+                          taskInitialValues={activeTaskId === task.id ? activeTaskEditableValues : {
+                            title: task.title,
+                            projectId: task.projectId,
+                            assignedTo: task.assignedTo,
+                            priority: task.priority,
+                            status: task.status,
+                            dueDate: task.dueDate === '-' ? '' : task.dueDate,
+                            notes: task.notes ?? '',
+                          }}
+                          onTaskSubmit={handleUpdateSubtask}
+                          trigger={
+                            <Button size="sm" variant="outline" className="h-7 border-border px-2 text-xs" onClick={() => setActiveTaskId(task.id)}>
+                              Düzenle
+                            </Button>
+                          }
+                        />
+                        <Button size="sm" variant="outline" className="h-7 border-red-500/30 px-2 text-xs text-red-300 hover:bg-red-500/10" onClick={() => void handleDeleteSubtask(task.id)}>
+                          Sil
+                        </Button>
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground">Bu proje için görev yok</p>
+                  <p className="text-sm text-muted-foreground">Bu proje için alt görev yok</p>
                 )}
               </div>
             </div>

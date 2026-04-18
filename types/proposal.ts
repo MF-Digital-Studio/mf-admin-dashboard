@@ -4,7 +4,11 @@ export interface Proposal {
   id: string
   title: string
   client: string
-  clientId: string
+  clientId: string | null
+  clientInstagram?: string
+  clientContact?: string
+  clientEmail?: string
+  clientPhone?: string
   amount: number
   sentDate: string | null
   status: ProposalStatus

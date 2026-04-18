@@ -8,6 +8,7 @@ import {
   mapProjectServiceToPrisma,
   mapProjectStatusToPrisma,
 } from '@/features/projects/mappers'
+import { mapPrismaTaskToTask } from '@/features/tasks/mappers'
 import { projectPayloadSchema } from '@/features/projects/schemas'
 import { createCrudNotification } from '@/lib/notifications'
 
@@ -26,6 +27,19 @@ export async function GET(_: Request, { params }: Params) {
           companyName: true,
         },
       },
+      tasks: {
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      },
     },
   })
 
@@ -36,6 +50,7 @@ export async function GET(_: Request, { params }: Params) {
   return NextResponse.json({
     project: mapPrismaProjectToProject(project),
     editable: mapPrismaProjectToEditable(project),
+    tasks: project.tasks.map(mapPrismaTaskToTask),
   })
 }
 
@@ -62,7 +77,6 @@ export async function PATCH(request: Request, { params }: Params) {
   if (parsed.data.budget !== undefined) data.budget = parsed.data.budget
   if (parsed.data.startDate !== undefined) data.startDate = new Date(parsed.data.startDate)
   if (parsed.data.deadline !== undefined) data.deadline = new Date(parsed.data.deadline)
-  if (parsed.data.progress !== undefined) data.progress = parsed.data.progress
   if (parsed.data.description !== undefined) data.notes = parsed.data.description || null
 
   try {
@@ -74,6 +88,11 @@ export async function PATCH(request: Request, { params }: Params) {
           select: {
             id: true,
             companyName: true,
+          },
+        },
+        tasks: {
+          select: {
+            status: true,
           },
         },
       },

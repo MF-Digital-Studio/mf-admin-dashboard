@@ -6,7 +6,6 @@ export type RouteId =
   | 'dashboard'
   | 'clients'
   | 'projects'
-  | 'tasks'
   | 'finance'
   | 'proposals'
   | 'notes'

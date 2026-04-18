@@ -44,6 +44,7 @@ export async function POST(request: Request) {
         contactPerson: parsed.data.contact,
         email: parsed.data.email,
         phone: parsed.data.phone,
+        instagram: parsed.data.instagram || null,
         serviceType: mapServiceToPrisma(parsed.data.service),
         status: mapStatusToPrisma(parsed.data.status),
         notes: parsed.data.notes || null,

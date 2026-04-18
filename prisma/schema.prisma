@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -52,6 +53,12 @@ enum PaymentStatus {
   OVERDUE
 }
 
+enum SubscriptionBillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
 enum ProposalStatus {
   DRAFT
   SENT
@@ -97,6 +104,7 @@ model Client {
   contactPerson String
   phone         String
   email         String       @unique
+  instagram     String?
   serviceType   ServiceType
   status        ClientStatus @default(LEAD)
   notes         String?
@@ -184,18 +192,23 @@ model Payment {
 }
 
 model Proposal {
-  id           String         @id @default(cuid())
-  title        String
-  amount       Decimal        @db.Decimal(12, 2)
-  sentDate     DateTime?
-  status       ProposalStatus @default(DRAFT)
-  followUpDate DateTime?
-  notes        String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id                    String         @id @default(cuid())
+  title                 String
+  amount                Decimal        @db.Decimal(12, 2)
+  sentDate              DateTime?
+  status                ProposalStatus @default(DRAFT)
+  followUpDate          DateTime?
+  notes                 String?
+  clientCompanyName     String?
+  clientContactPerson   String?
+  clientEmail           String?
+  clientPhone           String?
+  clientInstagram       String?
+  createdAt             DateTime       @default(now())
+  updatedAt             DateTime       @updatedAt
 
-  clientId String
-  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
 
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
@@ -203,6 +216,23 @@ model Proposal {
   @@index([clientId])
   @@index([projectId])
   @@index([status])
+}
+
+model CompanySubscription {
+  id           String                    @id @default(cuid())
+  name         String
+  category     String
+  billingCycle SubscriptionBillingCycle
+  amount       Decimal                   @db.Decimal(12, 2)
+  renewalDate  DateTime
+  isActive     Boolean                   @default(true)
+  notes        String?
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+
+  @@index([renewalDate])
+  @@index([isActive])
+  @@index([billingCycle])
 }
 
 model Note {

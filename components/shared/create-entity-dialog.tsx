@@ -7,8 +7,9 @@ import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, Di
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import type { ClientStatus, NoteCategory, NoteRelatedType, PaymentStatus, PriorityLevel, ProjectStatus, ProposalStatus, ServiceName, TaskStatus } from '@/types'
+import type { SubscriptionBillingCycle } from '@/types'
 
-export type CreateEntityType = 'client' | 'project' | 'task' | 'payment' | 'proposal' | 'note' | 'invite'
+export type CreateEntityType = 'client' | 'project' | 'task' | 'payment' | 'proposal' | 'subscription' | 'note' | 'invite'
 
 interface CreateEntityDialogProps {
   entity: CreateEntityType
@@ -24,6 +25,8 @@ interface CreateEntityDialogProps {
   onProposalSubmit?: (values: ProposalFormValues) => Promise<void> | void
   paymentInitialValues?: PaymentFormValues
   onPaymentSubmit?: (values: PaymentFormValues) => Promise<void> | void
+  subscriptionInitialValues?: SubscriptionFormValues
+  onSubscriptionSubmit?: (values: SubscriptionFormValues) => Promise<void> | void
   noteInitialValues?: NoteFormValues
   onNoteSubmit?: (values: NoteFormValues) => Promise<void> | void
 }
@@ -33,6 +36,7 @@ export interface ClientFormValues {
   contact: string
   phone: string
   email: string
+  instagram: string
   service: ServiceName
   status: ClientStatus
   notes: string
@@ -47,7 +51,6 @@ export interface ProjectFormValues {
   budget: number
   startDate: string
   deadline: string
-  progress: number
   description: string
 }
 
@@ -63,11 +66,27 @@ export interface TaskFormValues {
 
 export interface ProposalFormValues {
   title: string
+  clientMode: 'existing' | 'new'
   clientId: string
+  newClientCompany: string
+  newClientContact: string
+  newClientEmail: string
+  newClientPhone: string
+  newClientInstagram: string
   amount: number
   sentDate: string
   status: ProposalStatus
   followUp: string
+  notes: string
+}
+
+export interface SubscriptionFormValues {
+  name: string
+  category: string
+  billingCycle: SubscriptionBillingCycle
+  amount: number
+  renewalDate: string
+  isActive: boolean
   notes: string
 }
 
@@ -152,6 +171,11 @@ const formMeta: Record<CreateEntityType, { title: string; description: string; s
     description: 'Ödeme kaydı ekleyerek finans akışını güncel tutun.',
     saveLabel: 'Ödemeyi Kaydet',
   },
+  subscription: {
+    title: 'Yeni Abonelik',
+    description: 'Araç ve şirket abonelik giderini ekleyin.',
+    saveLabel: 'Aboneliği Kaydet',
+  },
   proposal: {
     title: 'Yeni Teklif',
     description: 'Müşteri için yeni teklif kaydı oluşturun.',
@@ -191,6 +215,12 @@ function ClientFields({ initialValues }: { initialValues?: ClientFormValues }) {
           <label className={fieldLabelClass}>E-posta</label>
           <Input name="email" type="email" placeholder="ornek@firma.com" required defaultValue={initialValues?.email ?? ''} />
         </div>
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>Instagram</label>
+          <Input name="instagram" placeholder="https://instagram.com/..." defaultValue={initialValues?.instagram ?? ''} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Hizmet Türü</label>
           <select name="service" className={selectClass} defaultValue={initialValues?.service ?? 'Web Design'} required>
@@ -281,7 +311,7 @@ function ProjectFields({
           <Input name="budget" type="number" min="0" placeholder="₺" required defaultValue={initialValues?.budget ?? 0} />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Başlangıç</label>
           <Input name="startDate" type="date" required defaultValue={initialValues?.startDate ?? ''} />
@@ -289,10 +319,6 @@ function ProjectFields({
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Teslim</label>
           <Input name="deadline" type="date" required defaultValue={initialValues?.deadline ?? ''} />
-        </div>
-        <div className="grid gap-2">
-          <label className={fieldLabelClass}>İlerleme (%)</label>
-          <Input name="progress" type="number" min="0" max="100" defaultValue={initialValues?.progress ?? 0} required />
         </div>
       </div>
       <div className="grid gap-2">
@@ -451,6 +477,7 @@ function ProposalFields({
   initialValues?: ProposalFormValues
 }) {
   const firstClientId = clientOptions[0]?.id ?? ''
+  const [clientMode, setClientMode] = useState<'existing' | 'new'>(initialValues?.clientMode ?? 'existing')
 
   return (
     <>
@@ -458,20 +485,64 @@ function ProposalFields({
         <label className={fieldLabelClass}>Teklif Başlığı</label>
         <Input name="title" placeholder="Örn. Web + SEO Paket Teklifi" required defaultValue={initialValues?.title ?? ''} />
       </div>
+      <div className="grid gap-2">
+        <label className={fieldLabelClass}>Müşteri Türü</label>
+        <select
+          name="clientMode"
+          className={selectClass}
+          value={clientMode}
+          onChange={(event) => setClientMode(event.target.value as 'existing' | 'new')}
+          required
+        >
+          <option value="existing">Mevcut Müşteri</option>
+          <option value="new">Yeni Müşteri (Teklife Özel)</option>
+        </select>
+      </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="grid gap-2">
-          <label className={fieldLabelClass}>Müşteri</label>
-          <select name="clientId" className={selectClass} defaultValue={initialValues?.clientId ?? firstClientId} required>
-            {clientOptions.map((option) => (
-              <option key={option.id} value={option.id}>{option.company}</option>
-            ))}
-          </select>
-        </div>
+        {clientMode === 'existing' ? (
+          <div className="grid gap-2">
+            <label className={fieldLabelClass}>Müşteri</label>
+            <select name="clientId" className={selectClass} defaultValue={initialValues?.clientId ?? firstClientId} required>
+              {clientOptions.map((option) => (
+                <option key={option.id} value={option.id}>{option.company}</option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            <label className={fieldLabelClass}>Şirket</label>
+            <Input name="newClientCompany" placeholder="Yeni müşteri şirketi" required defaultValue={initialValues?.newClientCompany ?? ''} />
+          </div>
+        )}
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Tutar</label>
           <Input name="amount" type="number" min="0" placeholder="₺" required defaultValue={initialValues?.amount ?? 0} />
         </div>
       </div>
+      {clientMode === 'new' && (
+        <>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <label className={fieldLabelClass}>Yetkili Kişi</label>
+              <Input name="newClientContact" placeholder="Ad Soyad" required defaultValue={initialValues?.newClientContact ?? ''} />
+            </div>
+            <div className="grid gap-2">
+              <label className={fieldLabelClass}>Telefon</label>
+              <Input name="newClientPhone" placeholder="+90" required defaultValue={initialValues?.newClientPhone ?? ''} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-2">
+              <label className={fieldLabelClass}>E-posta</label>
+              <Input name="newClientEmail" type="email" placeholder="ornek@firma.com" required defaultValue={initialValues?.newClientEmail ?? ''} />
+            </div>
+            <div className="grid gap-2">
+              <label className={fieldLabelClass}>Instagram</label>
+              <Input name="newClientInstagram" placeholder="https://instagram.com/..." defaultValue={initialValues?.newClientInstagram ?? ''} />
+            </div>
+          </div>
+        </>
+      )}
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Gönderim Tarihi</label>
@@ -497,6 +568,52 @@ function ProposalFields({
           <label className={fieldLabelClass}>Notlar</label>
           <Textarea name="notes" placeholder="Görüşme notları, revizyon beklentileri..." className="min-h-20" defaultValue={initialValues?.notes ?? ''} />
         </div>
+      </div>
+    </>
+  )
+}
+
+function SubscriptionFields({ initialValues }: { initialValues?: SubscriptionFormValues }) {
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>Ad</label>
+          <Input name="name" placeholder="Örn. Vercel Pro" required defaultValue={initialValues?.name ?? ''} />
+        </div>
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>Kategori</label>
+          <Input name="category" placeholder="Örn. Hosting" required defaultValue={initialValues?.category ?? ''} />
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-3">
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>Faturalama</label>
+          <select name="billingCycle" className={selectClass} defaultValue={initialValues?.billingCycle ?? 'Monthly'} required>
+            <option>Monthly</option>
+            <option>Quarterly</option>
+            <option>Yearly</option>
+          </select>
+        </div>
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>Tutar</label>
+          <Input name="amount" type="number" min="0" required defaultValue={initialValues?.amount ?? 0} />
+        </div>
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>Yenileme</label>
+          <Input name="renewalDate" type="date" required defaultValue={initialValues?.renewalDate ?? ''} />
+        </div>
+      </div>
+      <div className="grid gap-2">
+        <label className={fieldLabelClass}>Aktiflik</label>
+        <select name="isActive" className={selectClass} defaultValue={initialValues?.isActive === false ? 'false' : 'true'} required>
+          <option value="true">Aktif</option>
+          <option value="false">Pasif</option>
+        </select>
+      </div>
+      <div className="grid gap-2">
+        <label className={fieldLabelClass}>Notlar</label>
+        <Textarea name="notes" placeholder="Abonelik notları..." className="min-h-20" defaultValue={initialValues?.notes ?? ''} />
       </div>
     </>
   )
@@ -622,6 +739,8 @@ export function CreateEntityDialog({
   onProposalSubmit,
   paymentInitialValues,
   onPaymentSubmit,
+  subscriptionInitialValues,
+  onSubscriptionSubmit,
   noteInitialValues,
   onNoteSubmit,
 }: CreateEntityDialogProps) {
@@ -668,6 +787,12 @@ export function CreateEntityDialog({
           ? {
               title: 'Ödeme Düzenle',
               description: 'Ödeme bilgilerini güncelleyin.',
+              saveLabel: 'Değişiklikleri Kaydet',
+            }
+      : entity === 'subscription' && mode === 'edit'
+          ? {
+              title: 'Abonelik Düzenle',
+              description: 'Abonelik bilgilerini güncelleyin.',
               saveLabel: 'Değişiklikleri Kaydet',
             }
       : entity === 'note' && mode === 'edit'
@@ -855,6 +980,7 @@ export function CreateEntityDialog({
         contact: String(formData.get('contact') ?? ''),
         phone: String(formData.get('phone') ?? ''),
         email: String(formData.get('email') ?? ''),
+        instagram: String(formData.get('instagram') ?? ''),
         service: String(formData.get('service') ?? 'Web Design') as ServiceName,
         status: String(formData.get('status') ?? 'Lead') as ClientStatus,
         notes: String(formData.get('notes') ?? ''),
@@ -881,7 +1007,6 @@ export function CreateEntityDialog({
         budget: Number(formData.get('budget') ?? 0),
         startDate: String(formData.get('startDate') ?? ''),
         deadline: String(formData.get('deadline') ?? ''),
-        progress: Number(formData.get('progress') ?? 0),
         description: String(formData.get('description') ?? ''),
       }
 
@@ -921,7 +1046,13 @@ export function CreateEntityDialog({
       const formData = new FormData(form)
       const payload: ProposalFormValues = {
         title: String(formData.get('title') ?? ''),
+        clientMode: String(formData.get('clientMode') ?? 'existing') as 'existing' | 'new',
         clientId: String(formData.get('clientId') ?? ''),
+        newClientCompany: String(formData.get('newClientCompany') ?? ''),
+        newClientContact: String(formData.get('newClientContact') ?? ''),
+        newClientEmail: String(formData.get('newClientEmail') ?? ''),
+        newClientPhone: String(formData.get('newClientPhone') ?? ''),
+        newClientInstagram: String(formData.get('newClientInstagram') ?? ''),
         amount: Number(formData.get('amount') ?? 0),
         sentDate: String(formData.get('sentDate') ?? ''),
         status: String(formData.get('status') ?? 'Draft') as ProposalStatus,
@@ -955,6 +1086,28 @@ export function CreateEntityDialog({
       setIsSubmitting(true)
       try {
         await onPaymentSubmit(payload)
+        setOpen(false)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
+    if (entity === 'subscription' && onSubscriptionSubmit) {
+      const formData = new FormData(form)
+      const payload: SubscriptionFormValues = {
+        name: String(formData.get('name') ?? ''),
+        category: String(formData.get('category') ?? ''),
+        billingCycle: String(formData.get('billingCycle') ?? 'Monthly') as SubscriptionBillingCycle,
+        amount: Number(formData.get('amount') ?? 0),
+        renewalDate: String(formData.get('renewalDate') ?? ''),
+        isActive: String(formData.get('isActive') ?? 'true') === 'true',
+        notes: String(formData.get('notes') ?? ''),
+      }
+
+      setIsSubmitting(true)
+      try {
+        await onSubscriptionSubmit(payload)
         setOpen(false)
       } finally {
         setIsSubmitting(false)
@@ -1031,6 +1184,7 @@ export function CreateEntityDialog({
           {entity === 'task' && <TaskFields projectOptions={taskProjectOptions} initialValues={taskInitialValues} />}
           {entity === 'payment' && <PaymentFields clientOptions={paymentClientOptions} projectOptions={paymentProjectOptions} initialValues={paymentInitialValues} />}
           {entity === 'proposal' && <ProposalFields clientOptions={proposalClientOptions} initialValues={proposalInitialValues} />}
+          {entity === 'subscription' && <SubscriptionFields initialValues={subscriptionInitialValues} />}
           {entity === 'note' && <NoteFields clientOptions={noteClientOptions} projectOptions={noteProjectOptions} initialValues={noteInitialValues} />}
           {entity === 'invite' && <InviteFields />}
 
@@ -1045,7 +1199,6 @@ export function CreateEntityDialog({
                 isSubmitting ||
                 (entity === 'project' && projectClientOptions.length === 0) ||
                 (entity === 'task' && taskProjectOptions.length === 0) ||
-                (entity === 'proposal' && proposalClientOptions.length === 0) ||
                 (entity === 'payment' && paymentClientOptions.length === 0)
               }
             >

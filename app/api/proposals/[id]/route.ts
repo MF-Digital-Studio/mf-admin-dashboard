@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaProposalToEditable, mapPrismaProposalToProposal, mapProposalStatusToPrisma } from '@/features/proposals/mappers'
-import { proposalPayloadSchema } from '@/features/proposals/schemas'
+import { proposalPatchPayloadSchema } from '@/features/proposals/schemas'
 import { createCrudNotification } from '@/lib/notifications'
 
 interface Params {
@@ -18,6 +18,10 @@ export async function GET(_: Request, { params }: Params) {
         select: {
           id: true,
           companyName: true,
+          instagram: true,
+          contactPerson: true,
+          email: true,
+          phone: true,
         },
       },
     },
@@ -36,7 +40,7 @@ export async function GET(_: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params
   const body = await request.json()
-  const parsed = proposalPayloadSchema.partial().safeParse(body)
+  const parsed = proposalPatchPayloadSchema.safeParse(body)
 
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? 'Invalid payload' }, { status: 400 })
@@ -49,7 +53,30 @@ export async function PATCH(request: Request, { params }: Params) {
   const data: Record<string, unknown> = {}
 
   if (parsed.data.title !== undefined) data.title = parsed.data.title
-  if (parsed.data.clientId !== undefined) data.clientId = parsed.data.clientId
+  if (parsed.data.clientMode !== undefined) {
+    if (parsed.data.clientMode === 'existing') {
+      data.clientId = parsed.data.clientId ?? null
+      data.clientCompanyName = null
+      data.clientContactPerson = null
+      data.clientEmail = null
+      data.clientPhone = null
+      data.clientInstagram = null
+    } else {
+      data.clientId = null
+      data.clientCompanyName = parsed.data.newClientCompany ?? null
+      data.clientContactPerson = parsed.data.newClientContact ?? null
+      data.clientEmail = parsed.data.newClientEmail ?? null
+      data.clientPhone = parsed.data.newClientPhone ?? null
+      data.clientInstagram = parsed.data.newClientInstagram ?? null
+    }
+  } else {
+    if (parsed.data.clientId !== undefined) data.clientId = parsed.data.clientId
+    if (parsed.data.newClientCompany !== undefined) data.clientCompanyName = parsed.data.newClientCompany
+    if (parsed.data.newClientContact !== undefined) data.clientContactPerson = parsed.data.newClientContact
+    if (parsed.data.newClientEmail !== undefined) data.clientEmail = parsed.data.newClientEmail
+    if (parsed.data.newClientPhone !== undefined) data.clientPhone = parsed.data.newClientPhone
+    if (parsed.data.newClientInstagram !== undefined) data.clientInstagram = parsed.data.newClientInstagram
+  }
   if (parsed.data.amount !== undefined) data.amount = parsed.data.amount
   if (parsed.data.sentDate !== undefined) data.sentDate = parsed.data.sentDate ? new Date(parsed.data.sentDate) : null
   if (parsed.data.status !== undefined) data.status = mapProposalStatusToPrisma(parsed.data.status)
@@ -65,6 +92,10 @@ export async function PATCH(request: Request, { params }: Params) {
           select: {
             id: true,
             companyName: true,
+            instagram: true,
+            contactPerson: true,
+            email: true,
+            phone: true,
           },
         },
       },

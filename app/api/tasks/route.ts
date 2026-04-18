@@ -4,8 +4,12 @@ import { mapPrismaTaskToTask, mapTaskPriorityToPrisma, mapTaskStatusToPrisma } f
 import { taskPayloadSchema } from '@/features/tasks/schemas'
 import { createCrudNotification } from '@/lib/notifications'
 
-export async function GET() {
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url)
+  const projectId = searchParams.get('projectId')
+
   const tasks = await prisma.task.findMany({
+    where: projectId ? { projectId } : undefined,
     include: {
       project: {
         select: {

@@ -68,8 +68,11 @@ export function mapProjectPriorityToPrisma(value: PriorityLevel): Priority {
 }
 
 export function mapPrismaProjectToProject(
-  project: PrismaProjectModel & { client: { id: string; companyName: string } }
+  project: PrismaProjectModel & { client: { id: string; companyName: string }; tasks?: Array<{ status: 'DONE' | string }> }
 ): Project {
+  const taskCount = project.tasks?.length ?? 0
+  const completedTaskCount = project.tasks?.filter((task) => task.status === 'DONE').length ?? 0
+
   return {
     id: project.id,
     name: project.name,
@@ -81,7 +84,8 @@ export function mapPrismaProjectToProject(
     budget: Number(project.budget?.toString() ?? 0),
     status: statusToUi[project.status],
     priority: priorityToUi[project.priority],
-    progress: project.progress,
+    taskCount,
+    completedTaskCount,
     description: project.notes ?? '',
   }
 }
@@ -96,7 +100,6 @@ export function mapPrismaProjectToEditable(project: PrismaProjectModel) {
     budget: Number(project.budget?.toString() ?? 0),
     startDate: toDateString(project.startDate),
     deadline: toDateString(project.deadline),
-    progress: project.progress,
     description: project.notes ?? '',
   }
 }

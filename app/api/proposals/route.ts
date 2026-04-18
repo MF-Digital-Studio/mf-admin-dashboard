@@ -12,6 +12,10 @@ export async function GET() {
         select: {
           id: true,
           companyName: true,
+          instagram: true,
+          contactPerson: true,
+          email: true,
+          phone: true,
         },
       },
     },
@@ -35,7 +39,12 @@ export async function POST(request: Request) {
     const created = await prisma.proposal.create({
       data: {
         title: parsed.data.title,
-        clientId: parsed.data.clientId,
+        clientId: parsed.data.clientMode === 'existing' ? parsed.data.clientId : null,
+        clientCompanyName: parsed.data.clientMode === 'new' ? parsed.data.newClientCompany : null,
+        clientContactPerson: parsed.data.clientMode === 'new' ? parsed.data.newClientContact : null,
+        clientEmail: parsed.data.clientMode === 'new' ? parsed.data.newClientEmail : null,
+        clientPhone: parsed.data.clientMode === 'new' ? parsed.data.newClientPhone : null,
+        clientInstagram: parsed.data.clientMode === 'new' ? parsed.data.newClientInstagram : null,
         amount: parsed.data.amount,
         sentDate: parsed.data.sentDate ? new Date(parsed.data.sentDate) : null,
         status: mapProposalStatusToPrisma(parsed.data.status),
@@ -47,6 +56,10 @@ export async function POST(request: Request) {
           select: {
             id: true,
             companyName: true,
+            instagram: true,
+            contactPerson: true,
+            email: true,
+            phone: true,
           },
         },
       },

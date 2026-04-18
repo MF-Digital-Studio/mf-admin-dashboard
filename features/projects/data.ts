@@ -12,7 +12,8 @@ export const projects = [
     budget: 15000,
     status: 'Design',
     priority: 'High',
-    progress: 55,
+    taskCount: 20,
+    completedTaskCount: 11,
     description: 'Yeni marka kimliğiyle tam web sitesi yenilemesi.',
   },
   {
@@ -26,7 +27,8 @@ export const projects = [
     budget: 28000,
     status: 'Development',
     priority: 'High',
-    progress: 70,
+    taskCount: 30,
+    completedTaskCount: 21,
     description: '500+ ürün için özel Shopify mağazası.',
   },
   {
@@ -40,7 +42,8 @@ export const projects = [
     budget: 12000,
     status: 'Development',
     priority: 'Medium',
-    progress: 40,
+    taskCount: 15,
+    completedTaskCount: 6,
     description: 'Sürekli SEO ve içerik pazarlaması.',
   },
   {
@@ -54,7 +57,8 @@ export const projects = [
     budget: 4500,
     status: 'Waiting for Client',
     priority: 'Medium',
-    progress: 90,
+    taskCount: 10,
+    completedTaskCount: 9,
     description: 'Güncel menü içeriği ve QR kod yenilemesi.',
   },
   {
@@ -68,7 +72,8 @@ export const projects = [
     budget: 38000,
     status: 'Revision',
     priority: 'High',
-    progress: 85,
+    taskCount: 20,
+    completedTaskCount: 17,
     description: 'Lüks otel için web sitesi + SEO + QR menü.',
   },
   {
@@ -82,7 +87,8 @@ export const projects = [
     budget: 3500,
     status: 'Planning',
     priority: 'Low',
-    progress: 15,
+    taskCount: 13,
+    completedTaskCount: 2,
     description: 'Sezonluk yeni QR menü tasarımı.',
   },
   {
@@ -96,7 +102,8 @@ export const projects = [
     budget: 35000,
     status: 'Completed',
     priority: 'High',
-    progress: 100,
+    taskCount: 24,
+    completedTaskCount: 24,
     description: 'E-ticaret + 6 aylık SEO teslim edildi.',
   },
   {
@@ -110,7 +117,8 @@ export const projects = [
     budget: 12000,
     status: 'Development',
     priority: 'Medium',
-    progress: 30,
+    taskCount: 10,
+    completedTaskCount: 3,
     description: 'Otel görünürlüğü için aylık SEO çalışması.',
   },
 ] satisfies Project[]

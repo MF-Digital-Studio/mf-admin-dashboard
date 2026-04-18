@@ -80,6 +80,7 @@ export function mapPrismaClientToClientSummary(
     contact: client.contactPerson,
     email: client.email,
     phone: client.phone,
+    instagram: client.instagram ?? '',
     services: [service],
     status: statusToUi[client.status],
     activeProjects,
@@ -95,13 +96,15 @@ export function mapPrismaProjectToClientDetail(project: {
   id: string
   name: string
   status: ProjectStatus
-  progress: number
-}): Pick<Project, 'id' | 'name' | 'status' | 'progress'> {
+  taskCount: number
+  completedTaskCount: number
+}): Pick<Project, 'id' | 'name' | 'status' | 'taskCount' | 'completedTaskCount'> {
   return {
     id: project.id,
     name: project.name,
     status: projectStatusToUi[project.status],
-    progress: project.progress,
+    taskCount: project.taskCount,
+    completedTaskCount: project.completedTaskCount,
   }
 }
 
@@ -126,6 +129,7 @@ export function mapPrismaClientToEditable(client: PrismaClientModel) {
     contact: client.contactPerson,
     email: client.email,
     phone: client.phone,
+    instagram: client.instagram ?? '',
     service: serviceToUi[client.serviceType],
     status: statusToUi[client.status],
     notes: client.notes ?? '',

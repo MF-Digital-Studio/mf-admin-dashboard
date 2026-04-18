@@ -33,7 +33,6 @@ const pageTitles: Record<string, string> = {
   '/dashboard': 'Gösterge Paneli',
   '/clients': 'Müşteriler',
   '/projects': 'Projeler',
-  '/tasks': 'Görevler',
   '/finance': 'Finans',
   '/proposals': 'Teklifler',
   '/notes': 'Notlar',
@@ -43,7 +42,6 @@ const pageTitles: Record<string, string> = {
 const quickAddItems: Array<{ label: string; entity: CreateEntityType }> = [
   { label: 'Yeni Müşteri', entity: 'client' },
   { label: 'Yeni Proje', entity: 'project' },
-  { label: 'Yeni Görev', entity: 'task' },
   { label: 'Yeni Ödeme', entity: 'payment' },
   { label: 'Yeni Teklif', entity: 'proposal' },
 ]

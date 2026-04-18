@@ -11,6 +11,17 @@ function monthLabel(date: Date): string {
   return new Intl.DateTimeFormat('tr-TR', { month: 'short' }).format(date)
 }
 
+function formatRelativeTime(date: Date): string {
+  const diffMs = Date.now() - date.getTime()
+  const minutes = Math.floor(diffMs / (1000 * 60))
+  const hours = Math.floor(diffMs / (1000 * 60 * 60))
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+
+  if (minutes < 60) return `${Math.max(1, minutes)} dk once`
+  if (hours < 24) return `${hours} saat once`
+  return `${days} gun once`
+}
+
 export async function GET() {
   const now = new Date()
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
@@ -164,6 +175,43 @@ export async function GET() {
     activities = await listRecentActivities(6)
   } catch {
     activities = []
+  }
+
+  if (activities.length === 0) {
+    const fallbackActivities: Array<{ createdAt: Date; activity: ActivityItem }> = []
+
+    for (const client of recentClientsRaw) {
+      fallbackActivities.push({
+        createdAt: client.createdAt,
+        activity: {
+          id: `client:${client.id}`,
+          action: 'Yeni musteri eklendi',
+          detail: client.companyName,
+          time: formatRelativeTime(client.createdAt),
+          type: 'client',
+        },
+      })
+    }
+
+    for (const payment of paidPayments.slice(0, 4)) {
+      const sourceDate = payment.paidAt ?? payment.createdAt
+      const amount = Number(payment.amount.toString())
+      fallbackActivities.push({
+        createdAt: sourceDate,
+        activity: {
+          id: `payment:${payment.createdAt.toISOString()}:${amount}`,
+          action: 'Odeme alindi',
+          detail: `${amount.toLocaleString('tr-TR')} tutarinda odeme`,
+          time: formatRelativeTime(sourceDate),
+          type: 'payment',
+        },
+      })
+    }
+
+    activities = fallbackActivities
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, 6)
+      .map((entry) => entry.activity)
   }
 
   const recentClients = recentClientsRaw.map((client) => ({
