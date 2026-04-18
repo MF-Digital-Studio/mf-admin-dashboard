@@ -42,36 +42,52 @@ export async function GET(_: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params
   const body = await request.json()
-  const parsed = paymentPayloadSchema.safeParse(body)
+  const parsed = paymentPayloadSchema.partial().safeParse(body)
 
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? 'Invalid payload' }, { status: 400 })
   }
 
-  if (parsed.data.projectId) {
-    const project = await prisma.project.findUnique({
-      where: { id: parsed.data.projectId },
-      select: { id: true, clientId: true },
-    })
+  if (Object.keys(parsed.data).length === 0) {
+    return NextResponse.json({ message: 'At least one field is required' }, { status: 400 })
+  }
 
-    if (!project || project.clientId !== parsed.data.clientId) {
-      return NextResponse.json({ message: 'Project does not belong to selected client' }, { status: 400 })
+  const data: Record<string, unknown> = {}
+
+  if (parsed.data.projectId !== undefined) {
+    if (parsed.data.projectId !== null) {
+      const project = await prisma.project.findUnique({
+        where: { id: parsed.data.projectId },
+        select: { id: true, clientId: true },
+      })
+
+      if (!project) {
+        return NextResponse.json({ message: 'Project not found' }, { status: 404 })
+      }
+
+      if (parsed.data.clientId !== undefined && project.clientId !== parsed.data.clientId) {
+        return NextResponse.json({ message: 'Project does not belong to selected client' }, { status: 400 })
+      }
+
+      data.projectId = project.id
+      data.clientId = project.clientId
+    } else {
+      data.projectId = null
     }
   }
+
+  if (parsed.data.clientId !== undefined) data.clientId = parsed.data.clientId
+  if (parsed.data.amount !== undefined) data.amount = parsed.data.amount
+  if (parsed.data.category !== undefined) data.category = mapPaymentCategoryToPrisma(parsed.data.category)
+  if (parsed.data.status !== undefined) data.status = mapPaymentStatusToPrisma(parsed.data.status)
+  if (parsed.data.method !== undefined) data.paymentMethod = parsed.data.method
+  if (parsed.data.date !== undefined) data.paidAt = new Date(parsed.data.date)
+  if (parsed.data.notes !== undefined) data.notes = parsed.data.notes || null
 
   try {
     const updated = await prisma.payment.update({
       where: { id },
-      data: {
-        clientId: parsed.data.clientId,
-        projectId: parsed.data.projectId,
-        amount: parsed.data.amount,
-        category: mapPaymentCategoryToPrisma(parsed.data.category),
-        status: mapPaymentStatusToPrisma(parsed.data.status),
-        paymentMethod: parsed.data.method,
-        paidAt: new Date(parsed.data.date),
-        notes: parsed.data.notes || null,
-      },
+      data,
       include: {
         client: {
           select: {
@@ -104,7 +120,7 @@ export async function PATCH(request: Request, { params }: Params) {
       }
     }
 
-    return NextResponse.json({ message: 'Failed to update payment' }, { status: 500 })
+    return NextResponse.json({ message: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : 'Failed to update payment' }, { status: 500 })
   }
 }
 

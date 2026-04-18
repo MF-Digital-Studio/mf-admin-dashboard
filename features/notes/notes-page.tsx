@@ -11,6 +11,7 @@ import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 import { cn } from '@/lib/utils'
 import type { Note } from '@/types'
 import { toast } from 'sonner'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 
 const categories = ['All', 'Client Notes', 'Meeting Notes', 'Internal Ideas', 'Revision Requests']
 
@@ -65,6 +66,7 @@ export function NotesPage() {
   const [noteDetails, setNoteDetails] = useState<NotesDetailResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [confirmNote, setConfirmNote] = useState<null | { id: string; title: string }>(null)
 
   const loadNotes = useCallback(async () => {
     const data = await fetchJson<Note[]>('/api/notes')
@@ -121,14 +123,14 @@ export function NotesPage() {
     ? noteDetails.editable
     : activeNote
       ? {
-          title: activeNote.title,
-          category: activeNote.category,
-          relatedType: activeNote.relatedType,
-          clientId: activeNote.clientId ?? '',
-          projectId: activeNote.projectId ?? '',
-          content: activeNote.content,
-          tags: activeNote.tags,
-        }
+        title: activeNote.title,
+        category: activeNote.category,
+        relatedType: activeNote.relatedType,
+        clientId: activeNote.clientId ?? '',
+        projectId: activeNote.projectId ?? '',
+        content: activeNote.content,
+        tags: activeNote.tags,
+      }
       : undefined
 
   const handleCreateNote = async (payload: NoteFormValues) => {
@@ -172,15 +174,15 @@ export function NotesPage() {
   }
 
   const handleDeleteNote = async (note: Note) => {
-    const confirmed = window.confirm(`"${note.title}" notunu silmek istiyor musunuz?`)
-    if (!confirmed) {
-      return
-    }
+    setConfirmNote({ id: note.id, title: note.title })
+  }
 
+  const doDeleteNote = async (id: string) => {
+    setConfirmNote(null)
     setError(null)
     try {
-      await fetchJson(`/api/notes/${note.id}`, { method: 'DELETE' })
-      if (activeNoteId === note.id) {
+      await fetchJson(`/api/notes/${id}`, { method: 'DELETE' })
+      if (activeNoteId === id) {
         setActiveNoteId(null)
         setNoteDetails(null)
       }
@@ -308,11 +310,26 @@ export function NotesPage() {
           <p className="text-sm text-muted-foreground">Notlar yükleniyor...</p>
         </div>
       )}
+
       {!isLoading && filtered.length === 0 && (
         <div className="py-16 text-center">
           <StickyNote className="w-8 h-8 text-muted-foreground mx-auto mb-3 opacity-50" />
           <p className="text-sm text-muted-foreground">Not bulunamadı</p>
         </div>
+      )}
+
+      {confirmNote && (
+        <ConfirmDialog
+          open={Boolean(confirmNote)}
+          title="Notu sil"
+          description={`"${confirmNote?.title}" notunu silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+          confirmLabel="Sil"
+          cancelLabel="İptal"
+          onClose={(confirmed) => {
+            if (confirmed && confirmNote) void doDeleteNote(confirmNote.id)
+            else setConfirmNote(null)
+          }}
+        />
       )}
     </div>
   )

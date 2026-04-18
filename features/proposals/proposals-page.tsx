@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { DollarSign, FileText, CheckCircle, Clock } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/badges'
+import InlineSelect from '@/components/ui/inline-select'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatCard } from '@/components/shared/stat-card'
 import { TableWrapper } from '@/components/shared/table-wrapper'
@@ -44,6 +46,7 @@ export function ProposalsPage() {
   const [proposalDetails, setProposalDetails] = useState<ProposalDetailsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmProposal, setConfirmProposal] = useState<null | { id: string; title: string }>(null)
 
   const loadProposals = useCallback(async () => {
     const data = await fetchJson<Proposal[]>('/api/proposals')
@@ -127,14 +130,14 @@ export function ProposalsPage() {
     ? proposalDetails.editable
     : activeProposal
       ? {
-          title: activeProposal.title,
-          clientId: activeProposal.clientId,
-          amount: activeProposal.amount,
-          sentDate: activeProposal.sentDate ?? '',
-          status: activeProposal.status,
-          followUp: activeProposal.followUp ?? '',
-          notes: activeProposal.notes ?? '',
-        }
+        title: activeProposal.title,
+        clientId: activeProposal.clientId,
+        amount: activeProposal.amount,
+        sentDate: activeProposal.sentDate ?? '',
+        status: activeProposal.status,
+        followUp: activeProposal.followUp ?? '',
+        notes: activeProposal.notes ?? '',
+      }
       : undefined
 
   const handleCreateProposal = async (payload: ProposalFormValues) => {
@@ -182,17 +185,15 @@ export function ProposalsPage() {
   }
 
   const handleDeleteProposal = async (proposal: Proposal) => {
-    const confirmed = window.confirm(`"${proposal.title}" kaydini silmek istiyor musunuz?`)
-    if (!confirmed) {
-      return
-    }
+    setConfirmProposal({ id: proposal.id, title: proposal.title })
+  }
 
+  const doDeleteProposal = async (id: string) => {
+    setConfirmProposal(null)
     setError(null)
     try {
-      await fetchJson(`/api/proposals/${proposal.id}`, {
-        method: 'DELETE',
-      })
-      if (activeProposalId === proposal.id) {
+      await fetchJson(`/api/proposals/${id}`, { method: 'DELETE' })
+      if (activeProposalId === id) {
         setActiveProposalId(null)
         setProposalDetails(null)
       }
@@ -304,7 +305,18 @@ export function ProposalsPage() {
                     <td className="px-4 py-3 text-muted-foreground">{proposal.client}</td>
                     <td className="px-4 py-3 font-bold text-foreground">{formatCurrency(proposal.amount)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{proposal.sentDate ?? '-'}</td>
-                    <td className="px-4 py-3"><StatusBadge status={proposal.status} /></td>
+                    <td className="px-4 py-3">
+                      <InlineSelect
+                        value={proposal.status}
+                        options={[{ value: 'Draft', label: 'Taslak' }, { value: 'Sent', label: 'Gönderildi' }, { value: 'Under Review', label: 'İncelemede' }, { value: 'Accepted', label: 'Kabul' }, { value: 'Rejected', label: 'Reddedildi' }]}
+                        onChange={async (val) => {
+                          await fetchJson(`/api/proposals/${proposal.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: val }) })
+                          await loadProposals()
+                          toast.success('Durum güncellendi')
+                          emitDashboardDataRefresh()
+                        }}
+                      />
+                    </td>
                     <td className="px-4 py-3 text-muted-foreground">{proposal.followUp ?? '-'}</td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex gap-1.5">
@@ -355,6 +367,19 @@ export function ProposalsPage() {
           </div>
         )}
       </TableWrapper>
+      {confirmProposal && (
+        <ConfirmDialog
+          open={Boolean(confirmProposal)}
+          title="Teklifi sil"
+          description={`"${confirmProposal?.title}" kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+          confirmLabel="Sil"
+          cancelLabel="İptal"
+          onClose={(confirmed) => {
+            if (confirmed && confirmProposal) void doDeleteProposal(confirmProposal.id)
+            else setConfirmProposal(null)
+          }}
+        />
+      )}
     </div>
   )
 }

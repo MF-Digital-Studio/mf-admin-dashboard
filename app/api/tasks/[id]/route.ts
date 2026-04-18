@@ -36,39 +36,48 @@ export async function GET(_: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params
   const body = await request.json()
-  const parsed = taskPayloadSchema.safeParse(body)
+  const parsed = taskPayloadSchema.partial().safeParse(body)
 
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? 'Invalid payload' }, { status: 400 })
   }
 
-  const project = await prisma.project.findUnique({
-    where: {
-      id: parsed.data.projectId,
-    },
-    select: {
-      id: true,
-      clientId: true,
-    },
-  })
-
-  if (!project) {
-    return NextResponse.json({ message: 'Project not found' }, { status: 404 })
+  if (Object.keys(parsed.data).length === 0) {
+    return NextResponse.json({ message: 'At least one field is required' }, { status: 400 })
   }
+
+  const data: Record<string, unknown> = {}
+
+  if (parsed.data.projectId !== undefined) {
+    const project = await prisma.project.findUnique({
+      where: {
+        id: parsed.data.projectId,
+      },
+      select: {
+        id: true,
+        clientId: true,
+      },
+    })
+
+    if (!project) {
+      return NextResponse.json({ message: 'Project not found' }, { status: 404 })
+    }
+
+    data.projectId = project.id
+    data.clientId = project.clientId
+  }
+
+  if (parsed.data.title !== undefined) data.title = parsed.data.title
+  if (parsed.data.assignedTo !== undefined) data.assignee = parsed.data.assignedTo
+  if (parsed.data.priority !== undefined) data.priority = mapTaskPriorityToPrisma(parsed.data.priority)
+  if (parsed.data.status !== undefined) data.status = mapTaskStatusToPrisma(parsed.data.status)
+  if (parsed.data.dueDate !== undefined) data.dueDate = new Date(parsed.data.dueDate)
+  if (parsed.data.notes !== undefined) data.notes = parsed.data.notes || null
 
   try {
     const updated = await prisma.task.update({
       where: { id },
-      data: {
-        title: parsed.data.title,
-        projectId: project.id,
-        clientId: project.clientId,
-        assignee: parsed.data.assignedTo,
-        priority: mapTaskPriorityToPrisma(parsed.data.priority),
-        status: mapTaskStatusToPrisma(parsed.data.status),
-        dueDate: new Date(parsed.data.dueDate),
-        notes: parsed.data.notes || null,
-      },
+      data,
       include: {
         project: {
           select: {
@@ -93,7 +102,7 @@ export async function PATCH(request: Request, { params }: Params) {
       return NextResponse.json({ message: 'Task not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ message: 'Failed to update task' }, { status: 500 })
+    return NextResponse.json({ message: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : 'Failed to update task' }, { status: 500 })
   }
 }
 

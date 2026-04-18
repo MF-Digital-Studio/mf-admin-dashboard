@@ -68,7 +68,13 @@ export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebar
 
   const sidebarContent = (isMobile = false) => (
     <>
-      <div className={cn('flex items-center gap-3 px-4 py-5 border-b border-sidebar-border', !isMobile && collapsed && 'justify-center px-0')}>
+      <div
+        className={cn(
+          'flex items-center gap-3 px-4 border-b border-sidebar-border',
+          !isMobile ? 'h-14' : 'py-5',
+          !isMobile && collapsed && 'justify-center px-0',
+        )}
+      >
         <div className="flex items-center justify-center w-8 h-8 shrink-0 overflow-hidden rounded-md">
           <Image
             src="/logo.png"

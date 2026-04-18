@@ -115,24 +115,57 @@ export function mapNotificationToActivityItem(notification: Notification): Activ
 }
 
 export async function listRecentNotifications(limit = 6) {
-  const notifications = await prisma.notification.findMany({
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take: limit,
-  })
+  try {
+    const notifications = await prisma.notification.findMany({
+      where: {
+        hiddenFromBell: false,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    })
 
-  return notifications.map((notification) => ({
-    id: notification.id,
-    title: notification.title,
-    message: notification.message,
-    eventType: notification.eventType,
-    entityType: notification.entityType,
-    entityId: notification.entityId,
-    read: notification.read,
-    createdAt: notification.createdAt.toISOString(),
-    time: formatRelativeTime(notification.createdAt),
-  }))
+    return notifications.map((notification) => ({
+      id: notification.id,
+      title: notification.title,
+      message: notification.message,
+      eventType: notification.eventType,
+      entityType: notification.entityType,
+      entityId: notification.entityId,
+      read: notification.read,
+      createdAt: notification.createdAt.toISOString(),
+      time: formatRelativeTime(notification.createdAt),
+    }))
+  } catch (err) {
+    // If the DB doesn't have the column (migration not applied), fall back to returning recent notifications
+    const notifications = await prisma.notification.findMany({ orderBy: { createdAt: 'desc' }, take: limit })
+    return notifications.map((notification) => ({
+      id: notification.id,
+      title: notification.title,
+      message: notification.message,
+      eventType: notification.eventType,
+      entityType: notification.entityType,
+      entityId: notification.entityId,
+      read: notification.read,
+      createdAt: notification.createdAt.toISOString(),
+      time: formatRelativeTime(notification.createdAt),
+    }))
+  }
+}
+
+export async function clearBellNotifications() {
+  try {
+    return await prisma.notification.updateMany({
+      where: {
+        hiddenFromBell: false,
+      },
+      data: {
+        hiddenFromBell: true,
+      },
+    })
+  } catch (err) {
+    // Surface the error to caller so API can respond accordingly
+    throw err
+  }
 }
 
 export async function listRecentActivities(limit = 6) {

@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
 import { Bell, ChevronDown, Menu, Plus, Search } from 'lucide-react'
+import { toast } from 'sonner'
+import { Trash } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -125,6 +127,29 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
     emitDashboardDataRefresh()
   }
 
+  const handleClearBell = async () => {
+    try {
+      const res = await fetch('/api/notifications', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clearBell: true }),
+      })
+
+      if (res.ok) {
+        setNotifications([])
+        emitDashboardDataRefresh()
+        toast.success('Bildirimler temizlendi')
+      } else {
+        const data = await res.json().catch(() => null)
+        toast.error((data && data.message) || 'Bildirimler temizlenemedi')
+      }
+    } catch (err) {
+      console.error('Failed to clear notifications', err)
+      toast.error('Bildirimler temizlenemedi')
+    }
+  }
+
+
   return (
     <header className="flex items-center justify-between h-14 px-3 sm:px-4 border-b border-border bg-card shrink-0 gap-2 sm:gap-4">
       <Button
@@ -165,7 +190,15 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
               <CreateEntityDialog
                 key={item.label}
                 entity={item.entity}
-                trigger={<DropdownMenuItem className="text-sm cursor-pointer hover:bg-accent">{item.label}</DropdownMenuItem>}
+                trigger={
+                  <DropdownMenuItem
+                    className="text-sm cursor-pointer hover:bg-accent"
+                    // prevent the dropdown from auto-closing so the DialogTrigger can mount reliably
+                    onSelect={(e: Event) => e.preventDefault()}
+                  >
+                    {item.label}
+                  </DropdownMenuItem>
+                }
               />
             ))}
           </DropdownMenuContent>
@@ -197,6 +230,18 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
             ) : (
               <p className="px-2 py-3 text-sm text-muted-foreground">Henüz bildirim yok</p>
             )}
+            <div className="mt-2">
+              <DropdownMenuSeparator className="bg-border mt-2" />
+              <div className="px-2 pt-2">
+                <button
+                  onClick={handleClearBell}
+                  className="flex items-center gap-2 w-full rounded-md px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                >
+                  <Trash className="w-4 h-4" />
+                  <span>Tümünü Temizle</span>
+                </button>
+              </div>
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -218,7 +263,7 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
               <Link href="/settings">Ayarlar</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border" />
-            <DropdownMenuItem className="text-sm text-destructive-foreground cursor-pointer hover:bg-accent">
+            <DropdownMenuItem className="text-sm cursor-pointer hover:bg-accent">
               Çıkış Yap
             </DropdownMenuItem>
           </DropdownMenuContent>

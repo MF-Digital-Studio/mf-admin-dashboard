@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { ensureSystemNotifications, listRecentNotifications, markAllNotificationsRead, markNotificationRead } from '@/lib/notifications'
+import { ensureSystemNotifications, listRecentNotifications, markAllNotificationsRead, markNotificationRead, clearBellNotifications } from '@/lib/notifications'
 
 export async function GET() {
   await ensureSystemNotifications()
@@ -13,6 +13,15 @@ export async function PATCH(request: Request) {
   if (body?.markAllRead) {
     await markAllNotificationsRead()
     return NextResponse.json({ ok: true })
+  }
+
+  if (body?.clearBell) {
+    try {
+      await clearBellNotifications()
+      return NextResponse.json({ ok: true })
+    } catch (err) {
+      return NextResponse.json({ message: 'Failed to clear bell notifications. Run DB migration to add hiddenFromBell field.' }, { status: 500 })
+    }
   }
 
   if (body?.id) {

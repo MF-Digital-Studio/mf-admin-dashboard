@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronRight, Mail, MapPin, Phone, X } from 'lucide-react'
 import { BadgePill, StatusBadge } from '@/components/shared/badges'
+import InlineSelect from '@/components/ui/inline-select'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { FilterGroup } from '@/components/shared/filter-group'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchField } from '@/components/shared/search-field'
@@ -55,6 +57,7 @@ export function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState('All')
   const [serviceFilter, setServiceFilter] = useState('All')
   const [selected, setSelected] = useState<string | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const [selectedDetails, setSelectedDetails] = useState<ClientDetailsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
@@ -137,7 +140,7 @@ export function ClientsPage() {
   const selectedEditableValues: ClientFormValues | undefined = selectedDetails?.editable
     ? selectedDetails.editable
     : selectedClient
-    ? {
+      ? {
         company: selectedClient.company,
         contact: selectedClient.contact,
         phone: selectedClient.phone,
@@ -146,7 +149,7 @@ export function ClientsPage() {
         status: selectedClient.status,
         notes: selectedClient.notes ?? '',
       }
-    : undefined
+      : undefined
 
   const handleCreateClient = async (payload: ClientFormValues) => {
     setError(null)
@@ -197,16 +200,31 @@ export function ClientsPage() {
       return
     }
 
-    const confirmed = window.confirm(`"${selectedClient.company}" kaydini silmek istiyor musunuz?`)
-    if (!confirmed) {
-      return
-    }
+    // show a confirm dialog instead of native confirm
+    setConfirmOpen(true)
+    return
 
     setError(null)
     try {
       await fetchJson(`/api/clients/${selectedClient.id}`, {
         method: 'DELETE',
       })
+      setSelected(null)
+      setSelectedDetails(null)
+      await loadClients()
+      toast.success('Müşteri silindi')
+      emitDashboardDataRefresh()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete client')
+    }
+  }
+
+  const doDeleteClient = async () => {
+    if (!selectedClient) return
+    setConfirmOpen(false)
+    setError(null)
+    try {
+      await fetchJson(`/api/clients/${selectedClient.id}`, { method: 'DELETE' })
       setSelected(null)
       setSelectedDetails(null)
       await loadClients()
@@ -289,7 +307,22 @@ export function ClientsPage() {
                           ))}
                         </div>
                       </td>
-                      <td className="px-4 py-3"><StatusBadge status={client.status} /></td>
+                      <td className="px-4 py-3">
+                        <InlineSelect
+                          value={client.status}
+                          options={[{ value: 'Lead', label: 'Potansiyel' }, { value: 'In Discussion', label: 'Görüşmede' }, { value: 'Active', label: 'Aktif' }, { value: 'Completed', label: 'Tamamlandı' }, { value: 'Inactive', label: 'Pasif' }]}
+                          onChange={async (val) => {
+                            await fetchJson(`/api/clients/${client.id}`, {
+                              method: 'PATCH',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ status: val }),
+                            })
+                            await loadClients()
+                            toast.success('Durum güncellendi')
+                            emitDashboardDataRefresh()
+                          }}
+                        />
+                      </td>
                       <td className="px-4 py-3 text-center font-semibold text-foreground">{client.activeProjects}</td>
                       <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
                         {client.totalPaid > 0 ? formatCurrency(client.totalPaid) : '—'}
@@ -435,6 +468,17 @@ export function ClientsPage() {
               </p>
             </div>
           </div>
+          <ConfirmDialog
+            open={confirmOpen}
+            title="Müşteriyi sil"
+            description={`"${selectedClient.company}" kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+            confirmLabel="Sil"
+            cancelLabel="İptal"
+            onClose={(confirmed) => {
+              if (confirmed) void doDeleteClient()
+              else setConfirmOpen(false)
+            }}
+          />
         </div>
       )}
     </div>

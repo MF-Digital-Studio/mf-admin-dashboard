@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { AreaChart, Area, CartesianGrid, Cell, PieChart, Pie, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { AlertCircle, DollarSign, Percent, Star, Target, TrendingDown, TrendingUp } from 'lucide-react'
 import { StatusBadge } from '@/components/shared/badges'
+import InlineSelect from '@/components/ui/inline-select'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { PageHeader } from '@/components/shared/page-header'
 import { StatCard } from '@/components/shared/stat-card'
 import { TableWrapper } from '@/components/shared/table-wrapper'
@@ -98,6 +100,7 @@ export function FinancePage() {
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetailsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmPayment, setConfirmPayment] = useState<null | { id: string; title: string }>(null)
 
   const loadPayments = useCallback(async () => {
     const data = await fetchJson<Payment[]>('/api/payments')
@@ -221,15 +224,15 @@ export function FinancePage() {
     ? paymentDetails.editable
     : activePayment
       ? {
-          clientId: activePayment.clientId,
-          projectId: activePayment.projectId ?? '',
-          amount: activePayment.amount,
-          date: activePayment.date === '-' ? '' : activePayment.date,
-          category: activePayment.category,
-          status: activePayment.status,
-          method: activePayment.method,
-          notes: activePayment.notes ?? '',
-        }
+        clientId: activePayment.clientId,
+        projectId: activePayment.projectId ?? '',
+        amount: activePayment.amount,
+        date: activePayment.date === '-' ? '' : activePayment.date,
+        category: activePayment.category,
+        status: activePayment.status,
+        method: activePayment.method,
+        notes: activePayment.notes ?? '',
+      }
       : undefined
 
   const handleCreatePayment = async (payload: PaymentFormValues) => {
@@ -277,17 +280,15 @@ export function FinancePage() {
   }
 
   const handleDeletePayment = async (payment: Payment) => {
-    const confirmed = window.confirm(`"${payment.client}" ödeme kaydını silmek istiyor musunuz?`)
-    if (!confirmed) {
-      return
-    }
+    setConfirmPayment({ id: payment.id, title: `${payment.client} - ${formatCurrency(payment.amount)}` })
+  }
 
+  const doDeletePayment = async (id: string) => {
+    setConfirmPayment(null)
     setError(null)
     try {
-      await fetchJson(`/api/payments/${payment.id}`, {
-        method: 'DELETE',
-      })
-      if (activePaymentId === payment.id) {
+      await fetchJson(`/api/payments/${id}`, { method: 'DELETE' })
+      if (activePaymentId === id) {
         setActivePaymentId(null)
         setPaymentDetails(null)
       }
@@ -456,7 +457,18 @@ export function FinancePage() {
                     <td className="px-4 py-3 font-bold text-foreground">{formatCurrency(payment.amount)}</td>
                     <td className="px-4 py-3 text-muted-foreground">{payment.date}</td>
                     <td className="px-4 py-3 text-muted-foreground">{payment.method}</td>
-                    <td className="px-4 py-3"><StatusBadge status={payment.status} /></td>
+                    <td className="px-4 py-3">
+                      <InlineSelect
+                        value={payment.status}
+                        options={[{ value: 'Pending', label: 'Beklemede' }, { value: 'Paid', label: 'Ödendi' }, { value: 'Overdue', label: 'Gecikmiş' }]}
+                        onChange={async (val) => {
+                          await fetchJson(`/api/payments/${payment.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: val }) })
+                          await loadPayments()
+                          toast.success('Durum güncellendi')
+                          emitDashboardDataRefresh()
+                        }}
+                      />
+                    </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex gap-1.5">
                         <CreateEntityDialog
@@ -507,6 +519,19 @@ export function FinancePage() {
           </div>
         )}
       </TableWrapper>
+      {confirmPayment && (
+        <ConfirmDialog
+          open={Boolean(confirmPayment)}
+          title="Ödeme kaydını sil"
+          description={`"${confirmPayment?.title}" kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+          confirmLabel="Sil"
+          cancelLabel="İptal"
+          onClose={(confirmed) => {
+            if (confirmed && confirmPayment) void doDeletePayment(confirmPayment.id)
+            else setConfirmPayment(null)
+          }}
+        />
+      )}
 
       <TableWrapper title="Gider Kayıtları">
         <div className="overflow-x-auto">

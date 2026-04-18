@@ -36,24 +36,30 @@ export async function GET(_: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params
   const body = await request.json()
-  const parsed = proposalPayloadSchema.safeParse(body)
+  const parsed = proposalPayloadSchema.partial().safeParse(body)
 
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? 'Invalid payload' }, { status: 400 })
   }
 
+  if (Object.keys(parsed.data).length === 0) {
+    return NextResponse.json({ message: 'At least one field is required' }, { status: 400 })
+  }
+
+  const data: Record<string, unknown> = {}
+
+  if (parsed.data.title !== undefined) data.title = parsed.data.title
+  if (parsed.data.clientId !== undefined) data.clientId = parsed.data.clientId
+  if (parsed.data.amount !== undefined) data.amount = parsed.data.amount
+  if (parsed.data.sentDate !== undefined) data.sentDate = parsed.data.sentDate ? new Date(parsed.data.sentDate) : null
+  if (parsed.data.status !== undefined) data.status = mapProposalStatusToPrisma(parsed.data.status)
+  if (parsed.data.followUp !== undefined) data.followUpDate = parsed.data.followUp ? new Date(parsed.data.followUp) : null
+  if (parsed.data.notes !== undefined) data.notes = parsed.data.notes || null
+
   try {
     const updated = await prisma.proposal.update({
       where: { id },
-      data: {
-        title: parsed.data.title,
-        clientId: parsed.data.clientId,
-        amount: parsed.data.amount,
-        sentDate: parsed.data.sentDate ? new Date(parsed.data.sentDate) : null,
-        status: mapProposalStatusToPrisma(parsed.data.status),
-        followUpDate: parsed.data.followUp ? new Date(parsed.data.followUp) : null,
-        notes: parsed.data.notes || null,
-      },
+      data,
       include: {
         client: {
           select: {
@@ -80,7 +86,7 @@ export async function PATCH(request: Request, { params }: Params) {
       }
     }
 
-    return NextResponse.json({ message: 'Failed to update proposal' }, { status: 500 })
+    return NextResponse.json({ message: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : 'Failed to update proposal' }, { status: 500 })
   }
 }
 

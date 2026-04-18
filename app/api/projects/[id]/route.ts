@@ -42,27 +42,33 @@ export async function GET(_: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params
   const body = await request.json()
-  const parsed = projectPayloadSchema.safeParse(body)
+  const parsed = projectPayloadSchema.partial().safeParse(body)
 
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? 'Invalid payload' }, { status: 400 })
   }
 
+  if (Object.keys(parsed.data).length === 0) {
+    return NextResponse.json({ message: 'At least one field is required' }, { status: 400 })
+  }
+
+  const data: Record<string, unknown> = {}
+
+  if (parsed.data.name !== undefined) data.name = parsed.data.name
+  if (parsed.data.clientId !== undefined) data.clientId = parsed.data.clientId
+  if (parsed.data.service !== undefined) data.category = mapProjectServiceToPrisma(parsed.data.service)
+  if (parsed.data.status !== undefined) data.status = mapProjectStatusToPrisma(parsed.data.status)
+  if (parsed.data.priority !== undefined) data.priority = mapProjectPriorityToPrisma(parsed.data.priority)
+  if (parsed.data.budget !== undefined) data.budget = parsed.data.budget
+  if (parsed.data.startDate !== undefined) data.startDate = new Date(parsed.data.startDate)
+  if (parsed.data.deadline !== undefined) data.deadline = new Date(parsed.data.deadline)
+  if (parsed.data.progress !== undefined) data.progress = parsed.data.progress
+  if (parsed.data.description !== undefined) data.notes = parsed.data.description || null
+
   try {
     const updated = await prisma.project.update({
       where: { id },
-      data: {
-        name: parsed.data.name,
-        clientId: parsed.data.clientId,
-        category: mapProjectServiceToPrisma(parsed.data.service),
-        status: mapProjectStatusToPrisma(parsed.data.status),
-        priority: mapProjectPriorityToPrisma(parsed.data.priority),
-        budget: parsed.data.budget,
-        startDate: new Date(parsed.data.startDate),
-        deadline: new Date(parsed.data.deadline),
-        progress: parsed.data.progress,
-        notes: parsed.data.description || null,
-      },
+      data,
       include: {
         client: {
           select: {
@@ -89,7 +95,7 @@ export async function PATCH(request: Request, { params }: Params) {
       }
     }
 
-    return NextResponse.json({ message: 'Failed to update project' }, { status: 500 })
+    return NextResponse.json({ message: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : 'Failed to update project' }, { status: 500 })
   }
 }
 

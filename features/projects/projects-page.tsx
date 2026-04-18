@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Calendar, DollarSign, X } from 'lucide-react'
 import { tasks } from '@/features/tasks/data'
 import { BadgePill, PriorityBadge, StatusBadge } from '@/components/shared/badges'
+import InlineSelect from '@/components/ui/inline-select'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { FilterGroup } from '@/components/shared/filter-group'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchField } from '@/components/shared/search-field'
@@ -59,6 +61,7 @@ export function ProjectsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [confirmProject, setConfirmProject] = useState<null | { id: string; name: string }>(null)
 
   const loadProjects = useCallback(async () => {
     const data = await fetchJson<Project[]>('/api/projects')
@@ -138,17 +141,17 @@ export function ProjectsPage() {
     ? selectedDetails.editable
     : selectedProject
       ? {
-          name: selectedProject.name,
-          clientId: selectedProject.clientId,
-          service: selectedProject.service,
-          status: selectedProject.status,
-          priority: selectedProject.priority,
-          budget: selectedProject.budget,
-          startDate: selectedProject.startDate === '-' ? '' : selectedProject.startDate,
-          deadline: selectedProject.deadline === '-' ? '' : selectedProject.deadline,
-          progress: selectedProject.progress,
-          description: selectedProject.description ?? '',
-        }
+        name: selectedProject.name,
+        clientId: selectedProject.clientId,
+        service: selectedProject.service,
+        status: selectedProject.status,
+        priority: selectedProject.priority,
+        budget: selectedProject.budget,
+        startDate: selectedProject.startDate === '-' ? '' : selectedProject.startDate,
+        deadline: selectedProject.deadline === '-' ? '' : selectedProject.deadline,
+        progress: selectedProject.progress,
+        description: selectedProject.description ?? '',
+      }
       : undefined
 
   const handleCreateProject = async (payload: ProjectFormValues) => {
@@ -196,20 +199,15 @@ export function ProjectsPage() {
   }
 
   const handleDeleteProject = async () => {
-    if (!selectedProject) {
-      return
-    }
+    if (!selectedProject) return
+    setConfirmProject({ id: selectedProject.id, name: selectedProject.name })
+  }
 
-    const confirmed = window.confirm(`"${selectedProject.name}" kaydini silmek istiyor musunuz?`)
-    if (!confirmed) {
-      return
-    }
-
+  const doDeleteProject = async (id: string) => {
+    setConfirmProject(null)
     setError(null)
     try {
-      await fetchJson(`/api/projects/${selectedProject.id}`, {
-        method: 'DELETE',
-      })
+      await fetchJson(`/api/projects/${id}`, { method: 'DELETE' })
       setSelected(null)
       setSelectedDetails(null)
       await loadProjects()
@@ -264,11 +262,29 @@ export function ProjectsPage() {
                     <p className="text-base font-semibold text-foreground truncate">{project.name}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">{project.client}</p>
                   </div>
-                  <PriorityBadge priority={project.priority} />
+                  <InlineSelect
+                    value={project.priority}
+                    options={[{ value: 'High', label: 'Yüksek' }, { value: 'Medium', label: 'Orta' }, { value: 'Low', label: 'Düşük' }]}
+                    onChange={async (val) => {
+                      await fetchJson(`/api/projects/${project.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priority: val }) })
+                      await loadProjects()
+                      toast.success('Öncelik güncellendi')
+                      emitDashboardDataRefresh()
+                    }}
+                  />
                 </div>
 
                 <div className="flex items-center gap-2 mb-3">
-                  <StatusBadge status={project.status} />
+                  <InlineSelect
+                    value={project.status}
+                    options={[{ value: 'Planning', label: 'Planlama' }, { value: 'Design', label: 'Tasarım' }, { value: 'Development', label: 'Geliştirme' }, { value: 'Revision', label: 'Revizyon' }, { value: 'Waiting for Client', label: 'Bekliyor' }, { value: 'Completed', label: 'Tamamlandı' }, { value: 'On Hold', label: 'Beklemede' }]}
+                    onChange={async (val) => {
+                      await fetchJson(`/api/projects/${project.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: val }) })
+                      await loadProjects()
+                      toast.success('Durum güncellendi')
+                      emitDashboardDataRefresh()
+                    }}
+                  />
                   <BadgePill tone={serviceTone[project.service]} uppercase={false} className="px-1.5 py-0.5 text-[10px]">
                     {serviceLabelMap[project.service]}
                   </BadgePill>
@@ -400,7 +416,16 @@ export function ProjectsPage() {
                         <p className="text-sm font-medium text-foreground truncate">{task.title}</p>
                         <p className="text-sm text-muted-foreground">Teslim: {task.dueDate}</p>
                       </div>
-                      <StatusBadge status={task.status} />
+                      <InlineSelect
+                        value={task.status}
+                        options={[{ value: 'Todo', label: 'Yapılacak' }, { value: 'In Progress', label: 'Devam Ediyor' }, { value: 'Review', label: 'İncelemede' }, { value: 'Done', label: 'Tamamlandı' }, { value: 'Blocked', label: 'Engelli' }]}
+                        onChange={async (val) => {
+                          await fetchJson(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: val }) })
+                          await loadProjects()
+                          toast.success('Durum güncellendi')
+                          emitDashboardDataRefresh()
+                        }}
+                      />
                     </div>
                   ))
                 ) : (
@@ -410,6 +435,19 @@ export function ProjectsPage() {
             </div>
           </div>
         </div>
+      )}
+      {confirmProject && (
+        <ConfirmDialog
+          open={Boolean(confirmProject)}
+          title="Projeyi sil"
+          description={`"${confirmProject?.name}" kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+          confirmLabel="Sil"
+          cancelLabel="İptal"
+          onClose={(confirmed) => {
+            if (confirmed && confirmProject) void doDeleteProject(confirmProject.id)
+            else setConfirmProject(null)
+          }}
+        />
       )}
     </div>
   )

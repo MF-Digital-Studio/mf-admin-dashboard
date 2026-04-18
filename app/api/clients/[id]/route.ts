@@ -62,24 +62,30 @@ export async function GET(_: Request, { params }: Params) {
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params
   const body = await request.json()
-  const parsed = clientPayloadSchema.safeParse(body)
+  const parsed = clientPayloadSchema.partial().safeParse(body)
 
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? 'Invalid payload' }, { status: 400 })
   }
 
+  if (Object.keys(parsed.data).length === 0) {
+    return NextResponse.json({ message: 'At least one field is required' }, { status: 400 })
+  }
+
+  const data: Record<string, unknown> = {}
+
+  if (parsed.data.company !== undefined) data.companyName = parsed.data.company
+  if (parsed.data.contact !== undefined) data.contactPerson = parsed.data.contact
+  if (parsed.data.email !== undefined) data.email = parsed.data.email
+  if (parsed.data.phone !== undefined) data.phone = parsed.data.phone
+  if (parsed.data.service !== undefined) data.serviceType = mapServiceToPrisma(parsed.data.service)
+  if (parsed.data.status !== undefined) data.status = mapStatusToPrisma(parsed.data.status)
+  if (parsed.data.notes !== undefined) data.notes = parsed.data.notes || null
+
   try {
     const updated = await prisma.client.update({
       where: { id },
-      data: {
-        companyName: parsed.data.company,
-        contactPerson: parsed.data.contact,
-        email: parsed.data.email,
-        phone: parsed.data.phone,
-        serviceType: mapServiceToPrisma(parsed.data.service),
-        status: mapStatusToPrisma(parsed.data.status),
-        notes: parsed.data.notes || null,
-      },
+      data,
       include: {
         projects: {
           select: {
@@ -116,7 +122,7 @@ export async function PATCH(request: Request, { params }: Params) {
       }
     }
 
-    return NextResponse.json({ message: 'Failed to update client' }, { status: 500 })
+    return NextResponse.json({ message: process.env.NODE_ENV === 'development' && error instanceof Error ? error.message : 'Failed to update client' }, { status: 500 })
   }
 }
 

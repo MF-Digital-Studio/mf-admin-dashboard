@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { ReactElement } from 'react'
 import { AlertCircle, CheckCircle2, Circle, Clock } from 'lucide-react'
 import { PriorityBadge, StatusBadge } from '@/components/shared/badges'
+import InlineSelect from '@/components/ui/inline-select'
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { FilterGroup } from '@/components/shared/filter-group'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchField } from '@/components/shared/search-field'
@@ -48,6 +50,7 @@ export function TasksPage() {
   const [taskDetails, setTaskDetails] = useState<TaskDetailsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [confirmTask, setConfirmTask] = useState<null | { id: string; title: string }>(null)
 
   const today = todayIso()
 
@@ -132,14 +135,14 @@ export function TasksPage() {
     ? taskDetails.editable
     : activeTask
       ? {
-          title: activeTask.title,
-          projectId: activeTask.projectId,
-          assignedTo: activeTask.assignedTo,
-          priority: activeTask.priority,
-          status: activeTask.status,
-          dueDate: activeTask.dueDate === '-' ? '' : activeTask.dueDate,
-          notes: activeTask.notes ?? '',
-        }
+        title: activeTask.title,
+        projectId: activeTask.projectId,
+        assignedTo: activeTask.assignedTo,
+        priority: activeTask.priority,
+        status: activeTask.status,
+        dueDate: activeTask.dueDate === '-' ? '' : activeTask.dueDate,
+        notes: activeTask.notes ?? '',
+      }
       : undefined
 
   const handleCreateTask = async (payload: TaskFormValues) => {
@@ -187,17 +190,15 @@ export function TasksPage() {
   }
 
   const handleDeleteTask = async (task: Task) => {
-    const confirmed = window.confirm(`"${task.title}" kaydini silmek istiyor musunuz?`)
-    if (!confirmed) {
-      return
-    }
+    setConfirmTask({ id: task.id, title: task.title })
+  }
 
+  const doDeleteTask = async (id: string) => {
+    setConfirmTask(null)
     setError(null)
     try {
-      await fetchJson(`/api/tasks/${task.id}`, {
-        method: 'DELETE',
-      })
-      if (activeTaskId === task.id) {
+      await fetchJson(`/api/tasks/${id}`, { method: 'DELETE' })
+      if (activeTaskId === id) {
         setActiveTaskId(null)
         setTaskDetails(null)
       }
@@ -309,8 +310,30 @@ export function TasksPage() {
                       </td>
                       <td className="px-4 py-3 text-muted-foreground max-w-[160px] truncate">{task.project}</td>
                       <td className="px-4 py-3 text-muted-foreground">{task.assignedTo}</td>
-                      <td className="px-4 py-3"><PriorityBadge priority={task.priority} /></td>
-                      <td className="px-4 py-3"><StatusBadge status={task.status} /></td>
+                      <td className="px-4 py-3">
+                        <InlineSelect
+                          value={task.priority}
+                          options={[{ value: 'High', label: 'Yüksek' }, { value: 'Medium', label: 'Orta' }, { value: 'Low', label: 'Düşük' }]}
+                          onChange={async (val) => {
+                            await fetchJson(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ priority: val }) })
+                            await loadTasks()
+                            toast.success('Öncelik güncellendi')
+                            emitDashboardDataRefresh()
+                          }}
+                        />
+                      </td>
+                      <td className="px-4 py-3">
+                        <InlineSelect
+                          value={task.status}
+                          options={[{ value: 'Todo', label: 'Yapılacak' }, { value: 'In Progress', label: 'Devam Ediyor' }, { value: 'Review', label: 'İncelemede' }, { value: 'Done', label: 'Tamamlandı' }, { value: 'Blocked', label: 'Engelli' }]}
+                          onChange={async (val) => {
+                            await fetchJson(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: val }) })
+                            await loadTasks()
+                            toast.success('Durum güncellendi')
+                            emitDashboardDataRefresh()
+                          }}
+                        />
+                      </td>
                       <td className={cn('px-4 py-3 font-medium whitespace-nowrap', isOverdue ? 'text-red-400' : 'text-muted-foreground')}>
                         {isOverdue && <AlertCircle className="w-3 h-3 inline-block mr-1 text-red-400" />}
                         {task.dueDate}
@@ -365,6 +388,19 @@ export function TasksPage() {
           </div>
         )}
       </TableWrapper>
+      {confirmTask && (
+        <ConfirmDialog
+          open={Boolean(confirmTask)}
+          title="Görevi sil"
+          description={`"${confirmTask?.title}" kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`}
+          confirmLabel="Sil"
+          cancelLabel="İptal"
+          onClose={(confirmed) => {
+            if (confirmed && confirmTask) void doDeleteTask(confirmTask.id)
+            else setConfirmTask(null)
+          }}
+        />
+      )}
     </div>
   )
 }

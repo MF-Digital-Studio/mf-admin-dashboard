@@ -7,16 +7,12 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/shared/page-header'
-import { CreateEntityDialog } from '@/components/shared/create-entity-dialog'
+import { toast } from 'sonner'
 
 const tabs = [
   { id: 'general', label: 'Genel', icon: User },
   { id: 'team', label: 'Ekip', icon: Users },
   { id: 'appearance', label: 'Görünüm', icon: Palette },
-]
-
-const teamMembers = [
-  { name: 'Admin', role: 'Kurucu / Lider', email: 'admina@mfdigitalstudio.com', avatar: 'MF', status: 'Active' },
 ]
 
 const themeOptions = [
@@ -25,19 +21,73 @@ const themeOptions = [
   { label: 'Sistem', value: 'system' },
 ] as const
 
+type SettingsData = {
+  agencyName: string
+  email: string
+  phone: string
+  website: string
+  defaultCurrency: string
+}
+
+async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const response = await fetch(input, init)
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { message?: string } | null
+    throw new Error(data?.message ?? 'Request failed')
+  }
+  return (await response.json()) as T
+}
+
 export function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general')
   const [saved, setSaved] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [settings, setSettings] = useState<SettingsData>({
+    agencyName: 'MF Digital Studio',
+    email: 'info@mfdigital.com',
+    phone: '+90 555 000 0000',
+    website: 'https://mfdigital.com',
+    defaultCurrency: 'TRY',
+  })
   const { theme, setTheme } = useTheme()
 
   useEffect(() => {
     setMounted(true)
+    loadSettings()
   }, [])
 
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2000)
+  const loadSettings = async () => {
+    try {
+      const data = await fetchJson<SettingsData>('/api/settings')
+      setSettings(data)
+    } catch (error) {
+      console.error('Failed to load settings:', error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSave = async () => {
+    try {
+      await fetchJson('/api/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      })
+      setSaved(true)
+      toast.success('Ayarlar kaydedildi')
+      setTimeout(() => setSaved(false), 2000)
+    } catch (error) {
+      toast.error('Ayarlar kaydedilemedi')
+    }
+  }
+
+  const handleInputChange = (field: keyof SettingsData, value: string) => {
+    setSettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
   }
 
   return (
@@ -73,18 +123,46 @@ export function SettingsPage() {
             <div className="bg-card border border-border rounded-xl p-5 space-y-4">
               <h4 className="text-sm font-semibold text-foreground">Ajans Profili</h4>
               <div className="space-y-3">
-                {[
-                  { label: 'Ajans Adı', value: 'MF Digital Studio' },
-                  { label: 'E-posta', value: 'info@mfdigital.com' },
-                  { label: 'Telefon', value: '+90 555 000 0000' },
-                  { label: 'Web Sitesi', value: 'https://mfdigital.com' },
-                  { label: 'Varsayılan Para Birimi', value: '₺ TRY' },
-                ].map((field) => (
-                  <div key={field.label}>
-                    <label className="text-sm font-medium text-muted-foreground block mb-1.5">{field.label}</label>
-                    <Input defaultValue={field.value} className="h-8 text-sm bg-secondary border-border" />
-                  </div>
-                ))}
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1.5">Ajans Adı</label>
+                  <Input
+                    value={settings.agencyName}
+                    onChange={(e) => handleInputChange('agencyName', e.target.value)}
+                    className="h-8 text-sm bg-secondary border-border"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1.5">E-posta</label>
+                  <Input
+                    value={settings.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className="h-8 text-sm bg-secondary border-border"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1.5">Telefon</label>
+                  <Input
+                    value={settings.phone}
+                    onChange={(e) => handleInputChange('phone', e.target.value)}
+                    className="h-8 text-sm bg-secondary border-border"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1.5">Web Sitesi</label>
+                  <Input
+                    value={settings.website}
+                    onChange={(e) => handleInputChange('website', e.target.value)}
+                    className="h-8 text-sm bg-secondary border-border"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-muted-foreground block mb-1.5">Varsayılan Para Birimi</label>
+                  <Input
+                    value={settings.defaultCurrency}
+                    onChange={(e) => handleInputChange('defaultCurrency', e.target.value)}
+                    className="h-8 text-sm bg-secondary border-border"
+                  />
+                </div>
               </div>
             </div>
 
@@ -108,21 +186,18 @@ export function SettingsPage() {
             <div className="bg-card border border-border rounded-xl overflow-hidden">
               <div className="px-5 py-4 border-b border-border flex items-center justify-between">
                 <h4 className="text-sm font-semibold text-foreground">Üyeler (1)</h4>
-                <CreateEntityDialog entity="invite" trigger={<Button size="sm" className="h-7 text-sm bg-primary text-primary-foreground">+ Davet Et</Button>} />
               </div>
-              {teamMembers.map((member) => (
-                <div key={member.email} className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/40 transition-colors">
-                  <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                    <span className="text-sm font-bold text-primary">{member.avatar}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{member.name}</p>
-                    <p className="text-sm text-muted-foreground">{member.email}</p>
-                  </div>
-                  <span className="text-sm text-muted-foreground">{member.role}</span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">Aktif</span>
+              <div className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/40 transition-colors">
+                <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                  <span className="text-sm font-bold text-primary">MF</span>
                 </div>
-              ))}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Admin</p>
+                  <p className="text-sm text-muted-foreground">admin@mfdigitalstudio.com</p>
+                </div>
+                <span className="text-sm text-muted-foreground">Kurucu / Lider</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">Aktif</span>
+              </div>
             </div>
           </div>
         )}
@@ -149,25 +224,6 @@ export function SettingsPage() {
                     {option.label}
                   </button>
                 ))}
-              </div>
-
-              <div>
-                <h4 className="text-sm font-semibold text-foreground mb-3">Vurgu Rengi</h4>
-                <div className="flex gap-2.5">
-                  {[
-                    { name: 'Mavi', cls: 'bg-blue-500' },
-                    { name: 'Camgöbeği', cls: 'bg-cyan-500' },
-                    { name: 'Zümrüt', cls: 'bg-emerald-500' },
-                    { name: 'Mor', cls: 'bg-purple-500' },
-                    { name: 'Turuncu', cls: 'bg-orange-500' },
-                  ].map((color) => (
-                    <button
-                      key={color.name}
-                      title={color.name}
-                      className={cn('w-7 h-7 rounded-full transition-all hover:scale-110', color.cls, color.name === 'Mavi' && 'ring-2 ring-offset-2 ring-offset-background ring-blue-500')}
-                    />
-                  ))}
-                </div>
               </div>
             </div>
           </div>
