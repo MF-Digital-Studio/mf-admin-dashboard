@@ -79,7 +79,7 @@ export function ServicesPage() {
                   </div>
                 </div>
 
-                <button className={`w-full py-2 rounded-lg text-sm font-semibold border transition-colors ${colors.border} ${colors.text} hover:${colors.iconBg}`}>
+                <button className={`w-full py-2 rounded-none text-sm font-semibold border transition-colors ${colors.border} ${colors.text} hover:${colors.iconBg}`}>
                   Teklifte Kullan
                 </button>
               </div>

@@ -233,7 +233,7 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
               <div className="px-2 pt-2">
                 <button
                   onClick={handleClearBell}
-                  className="flex items-center gap-2 w-full rounded-md px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  className="flex items-center gap-2 w-full rounded-none px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                 >
                   <Trash className="w-4 h-4" />
                   <span>Tümünü Temizle</span>
@@ -245,7 +245,7 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 rounded-md px-2 py-1 hover:bg-accent transition-colors">
+            <button className="flex items-center gap-2 rounded-none px-2 py-1 hover:bg-accent transition-colors">
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
                 <span className="text-xs font-bold text-primary">MF</span>
               </div>

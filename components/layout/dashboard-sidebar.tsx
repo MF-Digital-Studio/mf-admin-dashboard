@@ -73,7 +73,7 @@ export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebar
           !isMobile && collapsed && 'justify-center px-0',
         )}
       >
-        <div className="flex items-center justify-center w-8 h-8 shrink-0 overflow-hidden rounded-md">
+        <div className="flex items-center justify-center w-8 h-8 shrink-0 overflow-hidden rounded-none">
           <Image
             src="/logo.png"
             alt="MF Digital Logo"
@@ -92,7 +92,7 @@ export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebar
         {isMobile && (
           <button
             onClick={onMobileClose}
-            className="ml-auto rounded-md p-2 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
+            className="ml-auto rounded-none p-2 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
             aria-label="Menuyu kapat"
           >
             <X className="w-4 h-4" />
@@ -112,7 +112,7 @@ export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebar
               onClick={isMobile ? onMobileClose : undefined}
               title={!isMobile && collapsed ? item.label : undefined}
               className={cn(
-                'flex items-center gap-3 rounded-md px-2.5 py-2 text-sm font-medium transition-all duration-150 w-full text-left group',
+                'flex items-center gap-3 rounded-none px-2.5 py-2 text-sm font-medium transition-all duration-150 w-full text-left group',
                 !isMobile && collapsed && 'justify-center px-0',
                 active
                   ? 'bg-sidebar-accent text-sidebar-foreground'
@@ -136,7 +136,7 @@ export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebar
         <div className="p-2 border-t border-sidebar-border">
           <button
             onClick={() => setCollapsed((value) => !value)}
-            className="flex items-center justify-center w-full rounded-md py-1.5 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
+            className="flex items-center justify-center w-full rounded-none py-1.5 text-muted-foreground hover:text-sidebar-foreground hover:bg-sidebar-accent/60 transition-colors"
           >
             {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
           </button>
