@@ -14,28 +14,59 @@ function getExtension(name: string): string {
   return ext && ext.length > 0 ? ext : 'file'
 }
 
-export async function GET() {
-  const files = await prisma.storedFile.findMany({
-    include: {
-      client: {
-        select: {
-          id: true,
-          companyName: true,
-        },
-      },
-      project: {
-        select: {
-          id: true,
-          name: true,
-        },
-      },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  })
+function normalizeOptionalId(value: unknown): string | null {
+  if (typeof value !== 'string') {
+    return null
+  }
 
-  return NextResponse.json(files.map(mapPrismaFileToFileRecord))
+  const trimmed = value.trim()
+  return trimmed.length > 0 ? trimmed : null
+}
+
+function withDevError(message: string, error: unknown, status = 500) {
+  if (process.env.NODE_ENV === 'production') {
+    return NextResponse.json({ message }, { status })
+  }
+
+  const details =
+    error instanceof Prisma.PrismaClientKnownRequestError
+      ? { code: error.code, meta: error.meta, name: error.name }
+      : error instanceof Error
+        ? { name: error.name, message: error.message }
+        : { message: String(error) }
+
+  return NextResponse.json({ message, details }, { status })
+}
+
+export async function GET() {
+  try {
+    const files = await prisma.storedFile.findMany({
+      include: {
+        client: {
+          select: {
+            id: true,
+            companyName: true,
+          },
+        },
+        project: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    })
+
+    return NextResponse.json(files.map(mapPrismaFileToFileRecord))
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error('GET /api/files failed, returning empty array fallback', error)
+    }
+    return NextResponse.json([])
+  }
 }
 
 export async function POST(request: Request) {
@@ -48,8 +79,8 @@ export async function POST(request: Request) {
 
   const parsed = fileUploadPayloadSchema.safeParse({
     category: formData.get('category'),
-    clientId: formData.get('clientId'),
-    projectId: formData.get('projectId'),
+    clientId: normalizeOptionalId(formData.get('clientId')),
+    projectId: normalizeOptionalId(formData.get('projectId')),
     notes: formData.get('notes'),
   })
 
@@ -156,6 +187,6 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json({ message: 'Failed to upload file' }, { status: 500 })
+    return withDevError('Failed to upload file', error, 500)
   }
 }
