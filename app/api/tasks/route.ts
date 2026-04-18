@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { mapPrismaTaskToTask, mapTaskPriorityToPrisma, mapTaskStatusToPrisma } from '@/features/tasks/mappers'
 import { taskPayloadSchema } from '@/features/tasks/schemas'
 import { createCrudNotification } from '@/lib/notifications'
+import { resolveTaskBillingState } from '@/features/tasks/billing'
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -48,6 +49,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Project not found' }, { status: 404 })
   }
 
+  const mappedStatus = mapTaskStatusToPrisma(parsed.data.status)
+  const normalizedPrice = parsed.data.price ?? null
+  const billingState = resolveTaskBillingState({
+    status: mappedStatus,
+    price: normalizedPrice,
+  })
+
   const created = await prisma.task.create({
     data: {
       title: parsed.data.title,
@@ -55,8 +63,9 @@ export async function POST(request: Request) {
       clientId: project.clientId,
       assignee: parsed.data.assignedTo,
       priority: mapTaskPriorityToPrisma(parsed.data.priority),
-      status: mapTaskStatusToPrisma(parsed.data.status),
-      price: parsed.data.price ?? null,
+      status: mappedStatus,
+      billingState,
+      price: normalizedPrice,
       dueDate: new Date(parsed.data.dueDate),
       notes: parsed.data.notes || null,
     },

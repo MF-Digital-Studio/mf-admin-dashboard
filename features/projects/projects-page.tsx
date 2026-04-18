@@ -16,6 +16,12 @@ import { formatCurrency } from '@/lib/format'
 import type { Project, ServiceName, Task } from '@/types'
 import { toast } from 'sonner'
 
+const billingStateLabelMap = {
+  pending: 'Pending',
+  ready_to_bill: 'Ready to bill',
+  billed: 'Billed',
+} as const
+
 const statuses = ['All', 'Planning', 'Design', 'Development', 'Revision', 'Waiting for Client', 'Completed', 'On Hold']
 const priorities = ['All', 'High', 'Medium', 'Low']
 const serviceFilters = ['All', 'Web Design', 'SEO', 'QR Menu', 'E-commerce']
@@ -39,6 +45,14 @@ type ProjectDetailsResponse = {
   editable: ProjectFormValues
   tasks: Task[]
   paymentCompleted: boolean
+  financialSummary: {
+    baseBudget: number
+    completedExtras: number
+    pendingExtras: number
+    totalCollectible: number
+    billedExtras: number
+    readyToBillExtras: number
+  }
 }
 
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
@@ -65,6 +79,7 @@ export function ProjectsPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirmProject, setConfirmProject] = useState<null | { id: string; name: string }>(null)
   const [isMarkingPayment, setIsMarkingPayment] = useState(false)
+  const [isBillingExtras, setIsBillingExtras] = useState(false)
 
   const loadProjects = useCallback(async () => {
     const data = await fetchJson<Project[]>('/api/projects')
@@ -168,6 +183,14 @@ export function ProjectsPage() {
     : undefined
 
   const isProjectPaymentCompleted = selectedDetails?.paymentCompleted ?? false
+  const financialSummary = selectedDetails?.financialSummary ?? {
+    baseBudget: selectedProject?.budget ?? 0,
+    completedExtras: projectTasks.reduce((sum, task) => sum + (task.status === 'Done' && task.price ? task.price : 0), 0),
+    pendingExtras: projectTasks.reduce((sum, task) => sum + (task.status !== 'Done' && task.price ? task.price : 0), 0),
+    totalCollectible: (selectedProject?.budget ?? 0) + projectTasks.reduce((sum, task) => sum + (task.status === 'Done' && task.price ? task.price : 0), 0),
+    billedExtras: projectTasks.reduce((sum, task) => sum + (task.billingState === 'billed' && task.price ? task.price : 0), 0),
+    readyToBillExtras: projectTasks.reduce((sum, task) => sum + (task.status === 'Done' && task.billingState !== 'billed' && task.price ? task.price : 0), 0),
+  }
 
   const handleCreateProject = async (payload: ProjectFormValues) => {
     setError(null)
@@ -304,6 +327,26 @@ export function ProjectsPage() {
     }
   }
 
+  const handleBillExtras = async () => {
+    if (!selectedProject || !isProjectPaymentCompleted || financialSummary.readyToBillExtras <= 0) return
+
+    setError(null)
+    setIsBillingExtras(true)
+    try {
+      const response = await fetchJson<{ billedTaskCount: number }>(`/api/projects/${selectedProject.id}/bill-extras`, {
+        method: 'POST',
+      })
+      await Promise.all([loadProjects(), loadProjectDetails(selectedProject.id)])
+      toast.success(`Ek işler finansa işlendi (${response.billedTaskCount} alt görev)`)
+      emitDashboardDataRefresh()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to bill extras'
+      setError(message)
+    } finally {
+      setIsBillingExtras(false)
+    }
+  }
+
   return (
     <div className="flex h-full overflow-hidden">
       <div className={cn('flex-1 overflow-y-auto p-4 sm:p-6 space-y-5', selected && 'hidden xl:block')}>
@@ -414,6 +457,15 @@ export function ProjectsPage() {
               >
                 {isProjectPaymentCompleted ? 'Ödeme Kaydı Oluşturuldu' : 'Ödeme Tamamlandı'}
               </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 border-border"
+                onClick={() => void handleBillExtras()}
+                disabled={!isProjectPaymentCompleted || financialSummary.readyToBillExtras <= 0 || isBillingExtras}
+              >
+                Bill Extras
+              </Button>
               <CreateEntityDialog
                 entity="project"
                 mode="edit"
@@ -460,6 +512,33 @@ export function ProjectsPage() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 rounded-lg bg-secondary border border-border">
+                <p className="text-sm text-muted-foreground">Ana Bütçe</p>
+                <p className="text-base font-bold text-foreground">{formatCurrency(financialSummary.baseBudget)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary border border-border">
+                <p className="text-sm text-muted-foreground">Tamamlanan Ek İşler</p>
+                <p className="text-base font-bold text-foreground">{formatCurrency(financialSummary.completedExtras)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary border border-border">
+                <p className="text-sm text-muted-foreground">Bekleyen Ek İşler</p>
+                <p className="text-base font-bold text-foreground">{formatCurrency(financialSummary.pendingExtras)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary border border-border">
+                <p className="text-sm text-muted-foreground">Toplam Tahsil Edilebilir</p>
+                <p className="text-base font-bold text-foreground">{formatCurrency(financialSummary.totalCollectible)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary border border-border">
+                <p className="text-sm text-muted-foreground">Billed Extras</p>
+                <p className="text-base font-bold text-foreground">{formatCurrency(financialSummary.billedExtras)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-secondary border border-border">
+                <p className="text-sm text-muted-foreground">Billable Extras</p>
+                <p className="text-base font-bold text-foreground">{formatCurrency(financialSummary.readyToBillExtras)}</p>
+              </div>
+            </div>
+
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Alt Görevler ({projectTasks.length})</p>
@@ -503,7 +582,10 @@ export function ProjectsPage() {
                         <span>Atanan: {task.assignedTo}</span>
                       </div>
                       {task.price !== null && task.price !== undefined && (
-                        <div className="text-xs font-semibold text-foreground">Fiyat: {formatCurrency(task.price)}</div>
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-foreground">Fiyat: {formatCurrency(task.price)}</div>
+                          <div className="text-[11px] text-muted-foreground">Tahsilat: {billingStateLabelMap[task.billingState ?? 'pending']}</div>
+                        </div>
                       )}
                       <div className="flex gap-1.5">
                         <CreateEntityDialog

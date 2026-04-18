@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { mapPrismaTaskToEditable, mapPrismaTaskToTask, mapTaskPriorityToPrisma, mapTaskStatusToPrisma } from '@/features/tasks/mappers'
 import { taskPayloadSchema } from '@/features/tasks/schemas'
 import { createCrudNotification } from '@/lib/notifications'
+import { resolveTaskBillingState } from '@/features/tasks/billing'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -47,6 +48,22 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 
   const data: Record<string, unknown> = {}
+  let currentTask: { status: 'TODO' | 'IN_PROGRESS' | 'REVIEW' | 'DONE' | 'BLOCKED'; price: { toString(): string } | null; billingState: 'PENDING' | 'READY_TO_BILL' | 'BILLED' } | null = null
+
+  if (parsed.data.status !== undefined || parsed.data.price !== undefined) {
+    currentTask = await prisma.task.findUnique({
+      where: { id },
+      select: {
+        status: true,
+        price: true,
+        billingState: true,
+      },
+    })
+
+    if (!currentTask) {
+      return NextResponse.json({ message: 'Task not found' }, { status: 404 })
+    }
+  }
 
   if (parsed.data.projectId !== undefined) {
     const project = await prisma.project.findUnique({
@@ -74,6 +91,17 @@ export async function PATCH(request: Request, { params }: Params) {
   if (parsed.data.price !== undefined) data.price = parsed.data.price
   if (parsed.data.dueDate !== undefined) data.dueDate = new Date(parsed.data.dueDate)
   if (parsed.data.notes !== undefined) data.notes = parsed.data.notes || null
+
+  if (currentTask) {
+    const nextStatus = parsed.data.status !== undefined ? mapTaskStatusToPrisma(parsed.data.status) : currentTask.status
+    const nextPrice = parsed.data.price !== undefined ? parsed.data.price : (currentTask.price ? Number(currentTask.price.toString()) : null)
+
+    data.billingState = resolveTaskBillingState({
+      status: nextStatus,
+      price: nextPrice,
+      currentState: currentTask.billingState,
+    })
+  }
 
   try {
     const updated = await prisma.task.update({

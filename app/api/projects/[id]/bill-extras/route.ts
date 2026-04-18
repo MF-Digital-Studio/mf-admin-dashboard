@@ -3,7 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaPaymentToPayment } from '@/features/finance/mappers'
 import { createCrudNotification } from '@/lib/notifications'
-import { getLegacyMainPaymentMarker, getMainPaymentMarker } from '@/lib/project-billing'
+import { getExtraPaymentMarker, getLegacyMainPaymentMarker, getMainPaymentMarker } from '@/lib/project-billing'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -13,8 +13,9 @@ const DEFAULT_PAYMENT_METHOD = 'Banka Havalesi'
 
 export async function POST(_: Request, { params }: Params) {
   const { id } = await params
-  const marker = getMainPaymentMarker(id)
-  const legacyMarker = getLegacyMainPaymentMarker(id)
+  const mainMarker = getMainPaymentMarker(id)
+  const legacyMainMarker = getLegacyMainPaymentMarker(id)
+  const extraMarker = getExtraPaymentMarker(id)
   const today = new Date()
 
   try {
@@ -25,20 +26,22 @@ export async function POST(_: Request, { params }: Params) {
           id: true,
           name: true,
           category: true,
-          budget: true,
           clientId: true,
           tasks: {
+            where: {
+              status: 'DONE',
+              price: {
+                not: null,
+              },
+              billingState: {
+                not: 'BILLED',
+              },
+            },
             select: {
-              status: true,
+              id: true,
+              title: true,
               price: true,
               billingState: true,
-              id: true,
-            },
-          },
-          client: {
-            select: {
-              id: true,
-              companyName: true,
             },
           },
         },
@@ -48,56 +51,57 @@ export async function POST(_: Request, { params }: Params) {
         return { type: 'not_found' as const }
       }
 
-      const existingPaid = await tx.payment.findFirst({
+      const hasMainPayment = await tx.payment.findFirst({
         where: {
           projectId: project.id,
           status: 'PAID',
           OR: [
-            { notes: { contains: marker } },
-            { notes: { contains: legacyMarker } },
+            { notes: { contains: mainMarker } },
+            { notes: { contains: legacyMainMarker } },
           ],
         },
-        include: {
-          client: {
-            select: {
-              id: true,
-              companyName: true,
-            },
+        select: { id: true },
+      })
+
+      if (!hasMainPayment) {
+        return { type: 'main_not_completed' as const }
+      }
+
+      if (project.tasks.length === 0) {
+        return { type: 'nothing_to_bill' as const }
+      }
+
+      const taskIds = project.tasks.map((task) => task.id)
+      const amount = project.tasks.reduce((sum, task) => sum + Number(task.price?.toString() ?? 0), 0)
+
+      const lockResult = await tx.task.updateMany({
+        where: {
+          id: {
+            in: taskIds,
           },
-          project: {
-            select: {
-              id: true,
-              name: true,
-            },
+          billingState: {
+            not: 'BILLED',
           },
         },
-        orderBy: {
-          createdAt: 'desc',
+        data: {
+          billingState: 'BILLED',
         },
       })
 
-      if (existingPaid) {
-        return { type: 'already_done' as const, payment: existingPaid }
+      if (lockResult.count === 0) {
+        return { type: 'nothing_to_bill' as const }
       }
-
-      const baseBudget = Number(project.budget?.toString() ?? 0)
-      const readyToBillTasks = project.tasks.filter((task) => task.status === 'DONE' && !!task.price && task.billingState !== 'BILLED')
-      const completedExtras = readyToBillTasks.reduce((sum, task) => {
-        if (!task.price) return sum
-        return sum + Number(task.price.toString())
-      }, 0)
-      const totalCollectible = baseBudget + completedExtras
 
       const createdPayment = await tx.payment.create({
         data: {
           clientId: project.clientId,
           projectId: project.id,
-          amount: totalCollectible,
+          amount,
           category: project.category,
           status: 'PAID',
           paymentMethod: DEFAULT_PAYMENT_METHOD,
           paidAt: today,
-          notes: `${marker} ${project.name} proje ödemesi tamamlandı (Ana Bütçe: ${baseBudget}, Tamamlanan Ek İşler: ${completedExtras})`,
+          notes: `${extraMarker} ${project.name} tamamlanan ek işler tahsil edildi (${lockResult.count} alt görev)`,
         },
         include: {
           client: {
@@ -115,31 +119,23 @@ export async function POST(_: Request, { params }: Params) {
         },
       })
 
-      if (readyToBillTasks.length > 0) {
-        await tx.task.updateMany({
-          where: {
-            id: {
-              in: readyToBillTasks.map((task) => task.id),
-            },
-          },
-          data: {
-            billingState: 'BILLED',
-          },
-        })
+      return {
+        type: 'created' as const,
+        payment: createdPayment,
+        billedTaskCount: lockResult.count,
       }
-
-      return { type: 'created' as const, payment: createdPayment, projectName: project.name }
     })
 
     if (result.type === 'not_found') {
       return NextResponse.json({ message: 'Project not found' }, { status: 404 })
     }
 
-    if (result.type === 'already_done') {
-      return NextResponse.json({
-        alreadyCompleted: true,
-        payment: mapPrismaPaymentToPayment(result.payment),
-      })
+    if (result.type === 'main_not_completed') {
+      return NextResponse.json({ message: 'Main project payment must be completed first' }, { status: 400 })
+    }
+
+    if (result.type === 'nothing_to_bill') {
+      return NextResponse.json({ message: 'No completed unbilled priced subtasks' }, { status: 400 })
     }
 
     await createCrudNotification({
@@ -147,18 +143,19 @@ export async function POST(_: Request, { params }: Params) {
       entityType: 'PAYMENT',
       entityId: result.payment.id,
       entityLabel: 'Ödeme',
-      detail: `${result.projectName} proje ödemesi tamamlandı`,
+      detail: `Ek işler tahsil edildi (${result.billedTaskCount} alt görev)`,
     }).catch(() => undefined)
 
     return NextResponse.json({
-      alreadyCompleted: false,
       payment: mapPrismaPaymentToPayment(result.payment),
+      billedTaskCount: result.billedTaskCount,
     })
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
       return NextResponse.json({ message: 'Project or client not found' }, { status: 404 })
     }
 
-    return NextResponse.json({ message: 'Failed to complete project payment' }, { status: 500 })
+    return NextResponse.json({ message: 'Failed to bill extras' }, { status: 500 })
   }
 }
+

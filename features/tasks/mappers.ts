@@ -1,4 +1,4 @@
-import type { Priority, Task as PrismaTaskModel, TaskStatus as PrismaTaskStatus } from '@prisma/client'
+import type { Priority, Task as PrismaTaskModel, TaskBillingState as PrismaTaskBillingState, TaskStatus as PrismaTaskStatus } from '@prisma/client'
 import type { PriorityLevel, Task, TaskStatus } from '@/types'
 
 const priorityToUi: Record<Priority, PriorityLevel> = {
@@ -29,6 +29,12 @@ const statusToPrisma: Record<TaskStatus, PrismaTaskStatus> = {
   Blocked: 'BLOCKED',
 }
 
+const billingStateToUi: Record<PrismaTaskBillingState, NonNullable<Task['billingState']>> = {
+  PENDING: 'pending',
+  READY_TO_BILL: 'ready_to_bill',
+  BILLED: 'billed',
+}
+
 function toDateString(value: Date | null | undefined): string {
   if (!value) {
     return '-'
@@ -54,6 +60,7 @@ export function mapPrismaTaskToTask(task: PrismaTaskModel & { project: { id: str
     assignedTo: task.assignee,
     priority: priorityToUi[task.priority],
     status: statusToUi[task.status],
+    billingState: billingStateToUi[task.billingState],
     price: task.price ? Number(task.price.toString()) : null,
     dueDate: toDateString(task.dueDate),
     notes: task.notes ?? '',
@@ -67,6 +74,7 @@ export function mapPrismaTaskToEditable(task: PrismaTaskModel) {
     assignedTo: task.assignee,
     priority: priorityToUi[task.priority],
     status: statusToUi[task.status],
+    billingState: billingStateToUi[task.billingState],
     price: task.price ? Number(task.price.toString()) : null,
     dueDate: toDateString(task.dueDate),
     notes: task.notes ?? '',

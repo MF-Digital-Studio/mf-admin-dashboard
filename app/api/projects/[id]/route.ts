@@ -11,6 +11,7 @@ import {
 import { mapPrismaTaskToTask } from '@/features/tasks/mappers'
 import { projectPayloadSchema } from '@/features/projects/schemas'
 import { createCrudNotification } from '@/lib/notifications'
+import { isMainProjectPaymentNote } from '@/lib/project-billing'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -43,6 +44,7 @@ export async function GET(_: Request, { params }: Params) {
       payments: {
         select: {
           status: true,
+          notes: true,
         },
       },
     },
@@ -52,11 +54,38 @@ export async function GET(_: Request, { params }: Params) {
     return NextResponse.json({ message: 'Project not found' }, { status: 404 })
   }
 
+  const baseBudget = Number(project.budget?.toString() ?? 0)
+  const completedExtras = project.tasks.reduce((sum, task) => {
+    if (task.status !== 'DONE' || !task.price) return sum
+    return sum + Number(task.price.toString())
+  }, 0)
+  const pendingExtras = project.tasks.reduce((sum, task) => {
+    if (task.status === 'DONE' || !task.price) return sum
+    return sum + Number(task.price.toString())
+  }, 0)
+  const billedExtras = project.tasks.reduce((sum, task) => {
+    if (task.billingState !== 'BILLED' || !task.price) return sum
+    return sum + Number(task.price.toString())
+  }, 0)
+  const readyToBillExtras = project.tasks.reduce((sum, task) => {
+    if (task.status !== 'DONE' || task.billingState === 'BILLED' || !task.price) return sum
+    return sum + Number(task.price.toString())
+  }, 0)
+  const hasMainPayment = project.payments.some((payment) => payment.status === 'PAID' && isMainProjectPaymentNote(project.id, payment.notes))
+
   return NextResponse.json({
     project: mapPrismaProjectToProject(project),
     editable: mapPrismaProjectToEditable(project),
     tasks: project.tasks.map(mapPrismaTaskToTask),
-    paymentCompleted: project.payments.some((payment) => payment.status === 'PAID'),
+    paymentCompleted: hasMainPayment,
+    financialSummary: {
+      baseBudget,
+      completedExtras,
+      pendingExtras,
+      totalCollectible: baseBudget + completedExtras,
+      billedExtras,
+      readyToBillExtras,
+    },
   })
 }
 
