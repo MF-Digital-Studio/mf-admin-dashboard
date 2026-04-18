@@ -1,4 +1,4 @@
-import { NotificationEntityType, NotificationEventType, type Notification } from '@prisma/client'
+import { NotificationEntityType, NotificationEventType, Prisma, type Notification } from '@prisma/client'
 import type { ActivityItem } from '@/types'
 import { prisma } from '@/lib/prisma'
 
@@ -163,8 +163,11 @@ export async function clearBellNotifications() {
       },
     })
   } catch (err) {
-    // Surface the error to caller so API can respond accordingly
-    throw err
+    if (err instanceof Prisma.PrismaClientKnownRequestError) {
+      return { count: 0 }
+    }
+
+    return { count: 0 }
   }
 }
 

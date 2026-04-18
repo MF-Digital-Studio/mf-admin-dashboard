@@ -153,8 +153,18 @@ export async function GET() {
     { name: 'Tamamlandı', value: projectsForStatus.filter((p) => p.status === 'COMPLETED').length, fill: '#22c55e' },
   ]
 
-  await ensureSystemNotifications()
-  const activities = await listRecentActivities(6)
+  try {
+    await ensureSystemNotifications()
+  } catch {
+    // Ignore notification generation failures so dashboard still returns core data.
+  }
+
+  let activities = []
+  try {
+    activities = await listRecentActivities(6)
+  } catch {
+    activities = []
+  }
 
   const recentClients = recentClientsRaw.map((client) => ({
     id: client.id,

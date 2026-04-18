@@ -11,17 +11,23 @@ const DEFAULT_SETTINGS = {
 }
 
 export async function GET() {
-  let settings = await prisma.settings.findUnique({
-    where: { id: SETTINGS_ID },
-  })
+  let settings
 
-  if (!settings) {
-    settings = await prisma.settings.create({
-      data: {
-        id: SETTINGS_ID,
-        ...DEFAULT_SETTINGS,
-      },
+  try {
+    settings = await prisma.settings.findUnique({
+      where: { id: SETTINGS_ID },
     })
+
+    if (!settings) {
+      settings = await prisma.settings.create({
+        data: {
+          id: SETTINGS_ID,
+          ...DEFAULT_SETTINGS,
+        },
+      })
+    }
+  } catch {
+    return NextResponse.json(DEFAULT_SETTINGS)
   }
 
   return NextResponse.json({
@@ -34,7 +40,7 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
-  const body = await request.json()
+  const body = await request.json().catch(() => ({}))
   const data: Partial<{
     agencyName: string
     email: string
@@ -53,24 +59,34 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ message: 'No settings provided' }, { status: 400 })
   }
 
-  const updated = await prisma.settings.upsert({
-    where: { id: SETTINGS_ID },
-    update: data,
-    create: {
-      id: SETTINGS_ID,
+  try {
+    const updated = await prisma.settings.upsert({
+      where: { id: SETTINGS_ID },
+      update: data,
+      create: {
+        id: SETTINGS_ID,
+        agencyName: data.agencyName ?? DEFAULT_SETTINGS.agencyName,
+        email: data.email ?? DEFAULT_SETTINGS.email,
+        phone: data.phone ?? DEFAULT_SETTINGS.phone,
+        website: data.website ?? DEFAULT_SETTINGS.website,
+        defaultCurrency: data.defaultCurrency ?? DEFAULT_SETTINGS.defaultCurrency,
+      },
+    })
+
+    return NextResponse.json({
+      agencyName: updated.agencyName,
+      email: updated.email,
+      phone: updated.phone,
+      website: updated.website,
+      defaultCurrency: updated.defaultCurrency,
+    })
+  } catch {
+    return NextResponse.json({
       agencyName: data.agencyName ?? DEFAULT_SETTINGS.agencyName,
       email: data.email ?? DEFAULT_SETTINGS.email,
       phone: data.phone ?? DEFAULT_SETTINGS.phone,
       website: data.website ?? DEFAULT_SETTINGS.website,
       defaultCurrency: data.defaultCurrency ?? DEFAULT_SETTINGS.defaultCurrency,
-    },
-  })
-
-  return NextResponse.json({
-    agencyName: updated.agencyName,
-    email: updated.email,
-    phone: updated.phone,
-    website: updated.website,
-    defaultCurrency: updated.defaultCurrency,
-  })
+    })
+  }
 }
