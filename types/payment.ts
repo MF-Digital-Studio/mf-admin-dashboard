@@ -1,13 +1,19 @@
+import type { ServiceName } from './common'
+
 export type PaymentStatus = 'Paid' | 'Pending' | 'Overdue'
 
 export interface Payment {
   id: string
   client: string
+  clientId: string
+  project?: string | null
+  projectId?: string | null
   amount: number
   date: string
-  category: string
+  category: ServiceName
   status: PaymentStatus
   method: string
+  notes?: string
 }
 
 export interface Expense {
@@ -17,4 +23,3 @@ export interface Expense {
   amount: number
   date: string
 }
-

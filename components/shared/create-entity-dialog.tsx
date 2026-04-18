@@ -1,19 +1,151 @@
 ﻿'use client'
 
 import type { ReactNode } from 'react'
-import { useMemo, useState } from 'react'
-import { clients } from '@/features/clients/data'
-import { projects } from '@/features/projects/data'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import type { ClientStatus, FileCategory, NoteCategory, NoteRelatedType, PaymentStatus, PriorityLevel, ProjectStatus, ProposalStatus, ServiceName, TaskStatus } from '@/types'
 
 export type CreateEntityType = 'client' | 'project' | 'task' | 'payment' | 'proposal' | 'note' | 'file' | 'invite'
 
 interface CreateEntityDialogProps {
   entity: CreateEntityType
   trigger: ReactNode
+  mode?: 'create' | 'edit'
+  clientInitialValues?: ClientFormValues
+  onClientSubmit?: (values: ClientFormValues) => Promise<void> | void
+  projectInitialValues?: ProjectFormValues
+  onProjectSubmit?: (values: ProjectFormValues) => Promise<void> | void
+  taskInitialValues?: TaskFormValues
+  onTaskSubmit?: (values: TaskFormValues) => Promise<void> | void
+  proposalInitialValues?: ProposalFormValues
+  onProposalSubmit?: (values: ProposalFormValues) => Promise<void> | void
+  paymentInitialValues?: PaymentFormValues
+  onPaymentSubmit?: (values: PaymentFormValues) => Promise<void> | void
+  noteInitialValues?: NoteFormValues
+  onNoteSubmit?: (values: NoteFormValues) => Promise<void> | void
+  onFileSubmit?: (values: FileFormValues) => Promise<void> | void
+}
+
+export interface ClientFormValues {
+  company: string
+  contact: string
+  phone: string
+  email: string
+  service: ServiceName
+  status: ClientStatus
+  notes: string
+}
+
+export interface ProjectFormValues {
+  name: string
+  clientId: string
+  service: ServiceName
+  status: ProjectStatus
+  priority: PriorityLevel
+  budget: number
+  startDate: string
+  deadline: string
+  progress: number
+  description: string
+}
+
+export interface TaskFormValues {
+  title: string
+  projectId: string
+  assignedTo: string
+  priority: PriorityLevel
+  status: TaskStatus
+  dueDate: string
+  notes: string
+}
+
+export interface ProposalFormValues {
+  title: string
+  clientId: string
+  amount: number
+  sentDate: string
+  status: ProposalStatus
+  followUp: string
+  notes: string
+}
+
+export interface PaymentFormValues {
+  clientId: string
+  projectId: string
+  amount: number
+  date: string
+  category: ServiceName
+  status: PaymentStatus
+  method: string
+  notes: string
+}
+
+export interface NoteFormValues {
+  title: string
+  category: NoteCategory
+  relatedType: NoteRelatedType
+  clientId: string
+  projectId: string
+  content: string
+  tags: string[]
+}
+
+export interface FileFormValues {
+  file: File
+  category: FileCategory
+  clientId: string
+  projectId: string
+  notes: string
+}
+
+interface ProjectClientOption {
+  id: string
+  company: string
+}
+
+interface TaskProjectOption {
+  id: string
+  name: string
+}
+
+interface ProposalClientOption {
+  id: string
+  company: string
+}
+
+interface PaymentClientOption {
+  id: string
+  company: string
+}
+
+interface PaymentProjectOption {
+  id: string
+  name: string
+  clientId: string
+}
+
+interface NoteClientOption {
+  id: string
+  company: string
+}
+
+interface NoteProjectOption {
+  id: string
+  name: string
+}
+
+interface FileClientOption {
+  id: string
+  company: string
+}
+
+interface FileProjectOption {
+  id: string
+  name: string
+  clientId: string
 }
 
 const fieldLabelClass = 'text-sm font-medium text-muted-foreground'
@@ -62,31 +194,31 @@ const formMeta: Record<CreateEntityType, { title: string; description: string; s
   },
 }
 
-function ClientFields() {
+function ClientFields({ initialValues }: { initialValues?: ClientFormValues }) {
   return (
     <>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>Şirket Adı</label>
-        <Input placeholder="Örn. Bodrum Butik Otel" required />
+        <Input name="company" placeholder="Örn. Bodrum Butik Otel" required defaultValue={initialValues?.company ?? ''} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Yetkili Kişi</label>
-          <Input placeholder="Ad Soyad" required />
+          <Input name="contact" placeholder="Ad Soyad" required defaultValue={initialValues?.contact ?? ''} />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Telefon</label>
-          <Input placeholder="+90" required />
+          <Input name="phone" placeholder="+90" required defaultValue={initialValues?.phone ?? ''} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>E-posta</label>
-          <Input type="email" placeholder="ornek@firma.com" required />
+          <Input name="email" type="email" placeholder="ornek@firma.com" required defaultValue={initialValues?.email ?? ''} />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Hizmet Türü</label>
-          <select className={selectClass} defaultValue="Web Design" required>
+          <select name="service" className={selectClass} defaultValue={initialValues?.service ?? 'Web Design'} required>
             <option>Web Design</option>
             <option>SEO</option>
             <option>QR Menu</option>
@@ -97,41 +229,50 @@ function ClientFields() {
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Durum</label>
-          <select className={selectClass} defaultValue="Lead" required>
+          <select name="status" className={selectClass} defaultValue={initialValues?.status ?? 'Lead'} required>
             <option>Lead</option>
             <option>In Discussion</option>
             <option>Active</option>
             <option>Completed</option>
+            <option>Inactive</option>
           </select>
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Notlar</label>
-          <Textarea placeholder="Müşteri beklentileri ve detaylar..." className="min-h-20" />
+          <Textarea name="notes" placeholder="Müşteri beklentileri ve detaylar..." className="min-h-20" defaultValue={initialValues?.notes ?? ''} />
         </div>
       </div>
     </>
   )
 }
 
-function ProjectFields({ clientNames }: { clientNames: string[] }) {
+function ProjectFields({
+  clientOptions,
+  initialValues,
+}: {
+  clientOptions: ProjectClientOption[]
+  initialValues?: ProjectFormValues
+}) {
+  const firstClientId = clientOptions[0]?.id ?? ''
+
   return (
     <>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>Proje Adı</label>
-        <Input placeholder="Örn. Kurumsal Site Yenileme" required />
+        <Input name="name" placeholder="Örn. Kurumsal Site Yenileme" required defaultValue={initialValues?.name ?? ''} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Müşteri</label>
-          <select className={selectClass} defaultValue={clientNames[0] ?? ''} required>
-            {clientNames.map((name) => (
-              <option key={name}>{name}</option>
+          <select name="clientId" className={selectClass} defaultValue={initialValues?.clientId ?? firstClientId} required>
+            {clientOptions.map((option) => (
+              <option key={option.id} value={option.id}>{option.company}</option>
             ))}
           </select>
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Kategori</label>
-          <select className={selectClass} defaultValue="Web Design" required>
+          <select name="service" className={selectClass} defaultValue={initialValues?.service ?? 'Web Design'} required>
             <option>Web Design</option>
             <option>SEO</option>
             <option>QR Menu</option>
@@ -142,17 +283,19 @@ function ProjectFields({ clientNames }: { clientNames: string[] }) {
       <div className="grid grid-cols-3 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Durum</label>
-          <select className={selectClass} defaultValue="Planning" required>
+          <select name="status" className={selectClass} defaultValue={initialValues?.status ?? 'Planning'} required>
             <option>Planning</option>
             <option>Design</option>
             <option>Development</option>
             <option>Revision</option>
             <option>Waiting for Client</option>
+            <option>On Hold</option>
+            <option>Completed</option>
           </select>
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Öncelik</label>
-          <select className={selectClass} defaultValue="Medium" required>
+          <select name="priority" className={selectClass} defaultValue={initialValues?.priority ?? 'Medium'} required>
             <option>High</option>
             <option>Medium</option>
             <option>Low</option>
@@ -160,56 +303,64 @@ function ProjectFields({ clientNames }: { clientNames: string[] }) {
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Bütçe</label>
-          <Input type="number" min="0" placeholder="₺" required />
+          <Input name="budget" type="number" min="0" placeholder="₺" required defaultValue={initialValues?.budget ?? 0} />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Başlangıç</label>
-          <Input type="date" required />
+          <Input name="startDate" type="date" required defaultValue={initialValues?.startDate ?? ''} />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Teslim</label>
-          <Input type="date" required />
+          <Input name="deadline" type="date" required defaultValue={initialValues?.deadline ?? ''} />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>İlerleme (%)</label>
-          <Input type="number" min="0" max="100" defaultValue="0" required />
+          <Input name="progress" type="number" min="0" max="100" defaultValue={initialValues?.progress ?? 0} required />
         </div>
       </div>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>Notlar</label>
-        <Textarea placeholder="Proje kapsamı, teslim kriterleri, önemli notlar..." className="min-h-20" />
+        <Textarea name="description" placeholder="Proje kapsamı, teslim kriterleri, önemli notlar..." className="min-h-20" defaultValue={initialValues?.description ?? ''} />
       </div>
     </>
   )
 }
 
-function TaskFields({ projectNames }: { projectNames: string[] }) {
+function TaskFields({
+  projectOptions,
+  initialValues,
+}: {
+  projectOptions: TaskProjectOption[]
+  initialValues?: TaskFormValues
+}) {
+  const firstProjectId = projectOptions[0]?.id ?? ''
+
   return (
     <>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>Görev Başlığı</label>
-        <Input placeholder="Örn. Ana sayfa hero tasarımı" required />
+        <Input name="title" placeholder="Örn. Ana sayfa hero tasarımı" required defaultValue={initialValues?.title ?? ''} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>İlgili Proje</label>
-          <select className={selectClass} defaultValue={projectNames[0] ?? ''} required>
-            {projectNames.map((name) => (
-              <option key={name}>{name}</option>
+          <select name="projectId" className={selectClass} defaultValue={initialValues?.projectId ?? firstProjectId} required>
+            {projectOptions.map((project) => (
+              <option key={project.id} value={project.id}>{project.name}</option>
             ))}
           </select>
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Atanan Kişi</label>
-          <Input defaultValue="Admin" required />
+          <Input name="assignedTo" defaultValue={initialValues?.assignedTo ?? 'Admin'} required />
         </div>
       </div>
       <div className="grid grid-cols-3 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Öncelik</label>
-          <select className={selectClass} defaultValue="Medium" required>
+          <select name="priority" className={selectClass} defaultValue={initialValues?.priority ?? 'Medium'} required>
             <option>High</option>
             <option>Medium</option>
             <option>Low</option>
@@ -217,7 +368,7 @@ function TaskFields({ projectNames }: { projectNames: string[] }) {
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Durum</label>
-          <select className={selectClass} defaultValue="Todo" required>
+          <select name="status" className={selectClass} defaultValue={initialValues?.status ?? 'Todo'} required>
             <option>Todo</option>
             <option>In Progress</option>
             <option>Review</option>
@@ -227,48 +378,58 @@ function TaskFields({ projectNames }: { projectNames: string[] }) {
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Teslim Tarihi</label>
-          <Input type="date" required />
+          <Input name="dueDate" type="date" required defaultValue={initialValues?.dueDate ?? ''} />
         </div>
       </div>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>Notlar</label>
-        <Textarea placeholder="Teslim beklentileri ve detay notlar..." className="min-h-20" />
+        <Textarea name="notes" placeholder="Teslim beklentileri ve detay notlar..." className="min-h-20" defaultValue={initialValues?.notes ?? ''} />
       </div>
     </>
   )
 }
 
-function PaymentFields({ clientNames }: { clientNames: string[] }) {
+function PaymentFields({
+  clientOptions,
+  projectOptions,
+  initialValues,
+}: {
+  clientOptions: PaymentClientOption[]
+  projectOptions: PaymentProjectOption[]
+  initialValues?: PaymentFormValues
+}) {
+  const firstClientId = clientOptions[0]?.id ?? ''
+  const selectedClientId = initialValues?.clientId ?? firstClientId
+
   return (
     <>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Müşteri</label>
-          <select className={selectClass} defaultValue={clientNames[0] ?? ''} required>
-            {clientNames.map((name) => (
-              <option key={name}>{name}</option>
+          <select name="clientId" className={selectClass} defaultValue={selectedClientId} required>
+            {clientOptions.map((option) => (
+              <option key={option.id} value={option.id}>{option.company}</option>
             ))}
           </select>
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Tutar</label>
-          <Input type="number" min="0" placeholder="₺" required />
+          <Input name="amount" type="number" min="0" placeholder="₺" required defaultValue={initialValues?.amount ?? 0} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Kategori</label>
-          <select className={selectClass} defaultValue="Web Tasarım" required>
-            <option>Web Tasarım</option>
+          <select name="category" className={selectClass} defaultValue={initialValues?.category ?? 'Web Design'} required>
+            <option>Web Design</option>
             <option>SEO</option>
-            <option>QR Menü</option>
-            <option>E-ticaret</option>
-            <option>Bakım</option>
+            <option>QR Menu</option>
+            <option>E-commerce</option>
           </select>
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Ödeme Durumu</label>
-          <select className={selectClass} defaultValue="Pending" required>
+          <select name="status" className={selectClass} defaultValue={initialValues?.status ?? 'Pending'} required>
             <option>Paid</option>
             <option>Pending</option>
             <option>Overdue</option>
@@ -277,56 +438,73 @@ function PaymentFields({ clientNames }: { clientNames: string[] }) {
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
+          <label className={fieldLabelClass}>İlgili Proje (Opsiyonel)</label>
+          <select name="projectId" className={selectClass} defaultValue={initialValues?.projectId ?? ''}>
+            <option value="">Proje yok</option>
+            {projectOptions.map((project) => (
+              <option key={project.id} value={project.id}>{project.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-2">
           <label className={fieldLabelClass}>Ödeme Yöntemi</label>
-          <select className={selectClass} defaultValue="Banka Havalesi" required>
+          <select name="method" className={selectClass} defaultValue={initialValues?.method ?? 'Banka Havalesi'} required>
             <option>Banka Havalesi</option>
             <option>EFT</option>
             <option>Kredi Kartı</option>
             <option>Nakit</option>
           </select>
         </div>
-        <div className="grid gap-2">
-          <label className={fieldLabelClass}>Tarih</label>
-          <Input type="date" required />
-        </div>
+      </div>
+      <div className="grid gap-2">
+        <label className={fieldLabelClass}>Tarih</label>
+        <Input name="date" type="date" required defaultValue={initialValues?.date ?? ''} />
       </div>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>Notlar</label>
-        <Textarea placeholder="Fatura, vade veya ödeme notları..." className="min-h-20" />
+        <Textarea name="notes" placeholder="Fatura, vade veya ödeme notları..." className="min-h-20" defaultValue={initialValues?.notes ?? ''} />
       </div>
     </>
   )
 }
 
-function ProposalFields({ clientNames }: { clientNames: string[] }) {
+function ProposalFields({
+  clientOptions,
+  initialValues,
+}: {
+  clientOptions: ProposalClientOption[]
+  initialValues?: ProposalFormValues
+}) {
+  const firstClientId = clientOptions[0]?.id ?? ''
+
   return (
     <>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>Teklif Başlığı</label>
-        <Input placeholder="Örn. Web + SEO Paket Teklifi" required />
+        <Input name="title" placeholder="Örn. Web + SEO Paket Teklifi" required defaultValue={initialValues?.title ?? ''} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Müşteri</label>
-          <select className={selectClass} defaultValue={clientNames[0] ?? ''} required>
-            {clientNames.map((name) => (
-              <option key={name}>{name}</option>
+          <select name="clientId" className={selectClass} defaultValue={initialValues?.clientId ?? firstClientId} required>
+            {clientOptions.map((option) => (
+              <option key={option.id} value={option.id}>{option.company}</option>
             ))}
           </select>
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Tutar</label>
-          <Input type="number" min="0" placeholder="₺" required />
+          <Input name="amount" type="number" min="0" placeholder="₺" required defaultValue={initialValues?.amount ?? 0} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Gönderim Tarihi</label>
-          <Input type="date" />
+          <Input name="sentDate" type="date" defaultValue={initialValues?.sentDate ?? ''} />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Durum</label>
-          <select className={selectClass} defaultValue="Draft" required>
+          <select name="status" className={selectClass} defaultValue={initialValues?.status ?? 'Draft'} required>
             <option>Draft</option>
             <option>Sent</option>
             <option>Under Review</option>
@@ -338,28 +516,38 @@ function ProposalFields({ clientNames }: { clientNames: string[] }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Takip Tarihi</label>
-          <Input type="date" />
+          <Input name="followUp" type="date" defaultValue={initialValues?.followUp ?? ''} />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Notlar</label>
-          <Textarea placeholder="Görüşme notları, revizyon beklentileri..." className="min-h-20" />
+          <Textarea name="notes" placeholder="Görüşme notları, revizyon beklentileri..." className="min-h-20" defaultValue={initialValues?.notes ?? ''} />
         </div>
       </div>
     </>
   )
 }
 
-function NoteFields() {
+function NoteFields({
+  clientOptions,
+  projectOptions,
+  initialValues,
+}: {
+  clientOptions: NoteClientOption[]
+  projectOptions: NoteProjectOption[]
+  initialValues?: NoteFormValues
+}) {
+  const tagsValue = (initialValues?.tags ?? []).join(', ')
+
   return (
     <>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>Not Başlığı</label>
-        <Input placeholder="Örn. Haftalık müşteri değerlendirmesi" required />
+        <Input name="title" placeholder="Örn. Haftalık müşteri değerlendirmesi" required defaultValue={initialValues?.title ?? ''} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Kategori</label>
-          <select className={selectClass} defaultValue="Client Notes" required>
+          <select name="category" className={selectClass} defaultValue={initialValues?.category ?? 'Client Notes'} required>
             <option>Client Notes</option>
             <option>Meeting Notes</option>
             <option>Internal Ideas</option>
@@ -367,29 +555,65 @@ function NoteFields() {
           </select>
         </div>
         <div className="grid gap-2">
-          <label className={fieldLabelClass}>İlişkili Kayıt</label>
-          <Input placeholder="Müşteri veya proje adı" />
+          <label className={fieldLabelClass}>İlişki Türü</label>
+          <select name="relatedType" className={selectClass} defaultValue={initialValues?.relatedType ?? 'internal'} required>
+            <option value="internal">Internal</option>
+            <option value="client">Client</option>
+            <option value="project">Project</option>
+          </select>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>İlişkili Müşteri</label>
+          <select name="clientId" className={selectClass} defaultValue={initialValues?.clientId ?? ''}>
+            <option value="">Seçilmedi</option>
+            {clientOptions.map((client) => (
+              <option key={client.id} value={client.id}>{client.company}</option>
+            ))}
+          </select>
+        </div>
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>İlişkili Proje</label>
+          <select name="projectId" className={selectClass} defaultValue={initialValues?.projectId ?? ''}>
+            <option value="">Seçilmedi</option>
+            {projectOptions.map((project) => (
+              <option key={project.id} value={project.id}>{project.name}</option>
+            ))}
+          </select>
         </div>
       </div>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>İçerik</label>
-        <Textarea placeholder="Not içeriğini buraya yazın..." className="min-h-28" required />
+        <Textarea name="content" placeholder="Not içeriğini buraya yazın..." className="min-h-28" required defaultValue={initialValues?.content ?? ''} />
+      </div>
+      <div className="grid gap-2">
+        <label className={fieldLabelClass}>Etiketler</label>
+        <Input name="tags" placeholder="örn. seo, revizyon, acil" defaultValue={tagsValue} />
       </div>
     </>
   )
 }
 
-function FileFields({ clientNames, projectNames }: { clientNames: string[]; projectNames: string[] }) {
+function FileFields({
+  clientOptions,
+  projectOptions,
+}: {
+  clientOptions: FileClientOption[]
+  projectOptions: FileProjectOption[]
+}) {
+  const firstClientId = clientOptions[0]?.id ?? ''
+
   return (
     <>
       <div className="grid gap-2">
-        <label className={fieldLabelClass}>Dosya Adı</label>
-        <Input placeholder="Örn. ana-sayfa-tasarim-v2.fig" required />
+        <label className={fieldLabelClass}>Dosya</label>
+        <Input name="file" type="file" required />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Kategori</label>
-          <select className={selectClass} defaultValue="Assets" required>
+          <select name="category" className={selectClass} defaultValue="Assets" required>
             <option>Logos</option>
             <option>Contracts</option>
             <option>Assets</option>
@@ -400,37 +624,32 @@ function FileFields({ clientNames, projectNames }: { clientNames: string[]; proj
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Dosya Türü</label>
-          <select className={selectClass} defaultValue="pdf" required>
-            <option>pdf</option>
-            <option>jpg</option>
-            <option>png</option>
-            <option>ai</option>
-            <option>fig</option>
-            <option>zip</option>
-          </select>
+          <Input defaultValue="Yüklenen dosyadan otomatik alınır" disabled />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Müşteri</label>
-          <select className={selectClass} defaultValue={clientNames[0] ?? ''}>
-            {clientNames.map((name) => (
-              <option key={name}>{name}</option>
+          <select name="clientId" className={selectClass} defaultValue={firstClientId}>
+            <option value="">Seçilmedi</option>
+            {clientOptions.map((client) => (
+              <option key={client.id} value={client.id}>{client.company}</option>
             ))}
           </select>
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Proje</label>
-          <select className={selectClass} defaultValue={projectNames[0] ?? ''}>
-            {projectNames.map((name) => (
-              <option key={name}>{name}</option>
+          <select name="projectId" className={selectClass} defaultValue="">
+            <option value="">Seçilmedi</option>
+            {projectOptions.map((project) => (
+              <option key={project.id} value={project.id}>{project.name}</option>
             ))}
           </select>
         </div>
       </div>
       <div className="grid gap-2">
         <label className={fieldLabelClass}>Açıklama</label>
-        <Textarea placeholder="Dosya hakkında kısa not..." className="min-h-20" />
+        <Textarea name="notes" placeholder="Dosya hakkında kısa not..." className="min-h-20" />
       </div>
     </>
   )
@@ -474,15 +693,451 @@ function InviteFields() {
   )
 }
 
-export function CreateEntityDialog({ entity, trigger }: CreateEntityDialogProps) {
+export function CreateEntityDialog({
+  entity,
+  trigger,
+  mode = 'create',
+  clientInitialValues,
+  onClientSubmit,
+  projectInitialValues,
+  onProjectSubmit,
+  taskInitialValues,
+  onTaskSubmit,
+  proposalInitialValues,
+  onProposalSubmit,
+  paymentInitialValues,
+  onPaymentSubmit,
+  noteInitialValues,
+  onNoteSubmit,
+  onFileSubmit,
+}: CreateEntityDialogProps) {
   const [open, setOpen] = useState(false)
-  const meta = formMeta[entity]
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [projectClientOptions, setProjectClientOptions] = useState<ProjectClientOption[]>([])
+  const [projectClientsError, setProjectClientsError] = useState<string | null>(null)
+  const [taskProjectOptions, setTaskProjectOptions] = useState<TaskProjectOption[]>([])
+  const [taskProjectsError, setTaskProjectsError] = useState<string | null>(null)
+  const [proposalClientOptions, setProposalClientOptions] = useState<ProposalClientOption[]>([])
+  const [proposalClientsError, setProposalClientsError] = useState<string | null>(null)
+  const [paymentClientOptions, setPaymentClientOptions] = useState<PaymentClientOption[]>([])
+  const [paymentProjectOptions, setPaymentProjectOptions] = useState<PaymentProjectOption[]>([])
+  const [paymentOptionsError, setPaymentOptionsError] = useState<string | null>(null)
+  const [noteClientOptions, setNoteClientOptions] = useState<NoteClientOption[]>([])
+  const [noteProjectOptions, setNoteProjectOptions] = useState<NoteProjectOption[]>([])
+  const [noteOptionsError, setNoteOptionsError] = useState<string | null>(null)
+  const [fileClientOptions, setFileClientOptions] = useState<FileClientOption[]>([])
+  const [fileProjectOptions, setFileProjectOptions] = useState<FileProjectOption[]>([])
+  const [fileOptionsError, setFileOptionsError] = useState<string | null>(null)
 
-  const clientNames = useMemo(() => clients.map((client) => client.company), [])
-  const projectNames = useMemo(() => projects.map((project) => project.name), [])
+  const meta = entity === 'client' && mode === 'edit'
+    ? {
+        title: 'Müşteri Düzenle',
+        description: 'Müşteri bilgilerini güncelleyin.',
+        saveLabel: 'Değişiklikleri Kaydet',
+      }
+    : entity === 'project' && mode === 'edit'
+      ? {
+          title: 'Proje Düzenle',
+          description: 'Proje bilgilerini güncelleyin.',
+          saveLabel: 'Değişiklikleri Kaydet',
+        }
+    : entity === 'task' && mode === 'edit'
+        ? {
+            title: 'Görev Düzenle',
+            description: 'Görev bilgilerini güncelleyin.',
+            saveLabel: 'Değişiklikleri Kaydet',
+          }
+      : entity === 'proposal' && mode === 'edit'
+          ? {
+              title: 'Teklif Düzenle',
+              description: 'Teklif bilgilerini güncelleyin.',
+              saveLabel: 'Değişiklikleri Kaydet',
+            }
+      : entity === 'payment' && mode === 'edit'
+          ? {
+              title: 'Ödeme Düzenle',
+              description: 'Ödeme bilgilerini güncelleyin.',
+              saveLabel: 'Değişiklikleri Kaydet',
+            }
+      : entity === 'note' && mode === 'edit'
+          ? {
+              title: 'Not Düzenle',
+              description: 'Not bilgilerini güncelleyin.',
+              saveLabel: 'Değişiklikleri Kaydet',
+            }
+      : formMeta[entity]
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    if (entity !== 'project' || !open) {
+      return
+    }
+
+    let mounted = true
+    const run = async () => {
+      setProjectClientsError(null)
+      try {
+        const response = await fetch('/api/clients')
+        if (!response.ok) {
+          throw new Error('Müşteri listesi yüklenemedi')
+        }
+
+        const data = (await response.json()) as Array<{ id: string; company: string }>
+        if (mounted) {
+          setProjectClientOptions(data.map((client) => ({ id: client.id, company: client.company })))
+        }
+      } catch (error) {
+        if (mounted) {
+          setProjectClientsError(error instanceof Error ? error.message : 'Müşteri listesi yüklenemedi')
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      mounted = false
+    }
+  }, [entity, open])
+
+  useEffect(() => {
+    if (entity !== 'proposal' || !open) {
+      return
+    }
+
+    let mounted = true
+    const run = async () => {
+      setProposalClientsError(null)
+      try {
+        const response = await fetch('/api/clients')
+        if (!response.ok) {
+          throw new Error('Müşteri listesi yüklenemedi')
+        }
+
+        const data = (await response.json()) as Array<{ id: string; company: string }>
+        if (mounted) {
+          setProposalClientOptions(data.map((client) => ({ id: client.id, company: client.company })))
+        }
+      } catch (error) {
+        if (mounted) {
+          setProposalClientsError(error instanceof Error ? error.message : 'Müşteri listesi yüklenemedi')
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      mounted = false
+    }
+  }, [entity, open])
+
+  useEffect(() => {
+    if (entity !== 'payment' || !open) {
+      return
+    }
+
+    let mounted = true
+    const run = async () => {
+      setPaymentOptionsError(null)
+      try {
+        const [clientsResponse, projectsResponse] = await Promise.all([fetch('/api/clients'), fetch('/api/projects')])
+        if (!clientsResponse.ok || !projectsResponse.ok) {
+          throw new Error('Ödeme formu seçenekleri yüklenemedi')
+        }
+
+        const clientsData = (await clientsResponse.json()) as Array<{ id: string; company: string }>
+        const projectsData = (await projectsResponse.json()) as Array<{ id: string; name: string; clientId: string }>
+
+        if (mounted) {
+          setPaymentClientOptions(clientsData.map((client) => ({ id: client.id, company: client.company })))
+          setPaymentProjectOptions(projectsData.map((project) => ({ id: project.id, name: project.name, clientId: project.clientId })))
+        }
+      } catch (error) {
+        if (mounted) {
+          setPaymentOptionsError(error instanceof Error ? error.message : 'Ödeme formu seçenekleri yüklenemedi')
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      mounted = false
+    }
+  }, [entity, open])
+
+  useEffect(() => {
+    if (entity !== 'note' || !open) {
+      return
+    }
+
+    let mounted = true
+    const run = async () => {
+      setNoteOptionsError(null)
+      try {
+        const [clientsResponse, projectsResponse] = await Promise.all([fetch('/api/clients'), fetch('/api/projects')])
+        if (!clientsResponse.ok || !projectsResponse.ok) {
+          throw new Error('Not formu seçenekleri yüklenemedi')
+        }
+
+        const clientsData = (await clientsResponse.json()) as Array<{ id: string; company: string }>
+        const projectsData = (await projectsResponse.json()) as Array<{ id: string; name: string }>
+
+        if (mounted) {
+          setNoteClientOptions(clientsData.map((client) => ({ id: client.id, company: client.company })))
+          setNoteProjectOptions(projectsData.map((project) => ({ id: project.id, name: project.name })))
+        }
+      } catch (error) {
+        if (mounted) {
+          setNoteOptionsError(error instanceof Error ? error.message : 'Not formu seçenekleri yüklenemedi')
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      mounted = false
+    }
+  }, [entity, open])
+
+  useEffect(() => {
+    if (entity !== 'file' || !open) {
+      return
+    }
+
+    let mounted = true
+    const run = async () => {
+      setFileOptionsError(null)
+      try {
+        const [clientsResponse, projectsResponse] = await Promise.all([fetch('/api/clients'), fetch('/api/projects')])
+        if (!clientsResponse.ok || !projectsResponse.ok) {
+          throw new Error('Dosya formu seçenekleri yüklenemedi')
+        }
+
+        const clientsData = (await clientsResponse.json()) as Array<{ id: string; company: string }>
+        const projectsData = (await projectsResponse.json()) as Array<{ id: string; name: string; clientId: string }>
+
+        if (mounted) {
+          setFileClientOptions(clientsData.map((client) => ({ id: client.id, company: client.company })))
+          setFileProjectOptions(projectsData.map((project) => ({ id: project.id, name: project.name, clientId: project.clientId })))
+        }
+      } catch (error) {
+        if (mounted) {
+          setFileOptionsError(error instanceof Error ? error.message : 'Dosya formu seçenekleri yüklenemedi')
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      mounted = false
+    }
+  }, [entity, open])
+
+  useEffect(() => {
+    if (entity !== 'task' || !open) {
+      return
+    }
+
+    let mounted = true
+    const run = async () => {
+      setTaskProjectsError(null)
+      try {
+        const response = await fetch('/api/projects')
+        if (!response.ok) {
+          throw new Error('Proje listesi yüklenemedi')
+        }
+
+        const data = (await response.json()) as Array<{ id: string; name: string }>
+        if (mounted) {
+          setTaskProjectOptions(data.map((project) => ({ id: project.id, name: project.name })))
+        }
+      } catch (error) {
+        if (mounted) {
+          setTaskProjectsError(error instanceof Error ? error.message : 'Proje listesi yüklenemedi')
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      mounted = false
+    }
+  }, [entity, open])
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    const form = event.currentTarget
+
+    if (entity === 'client' && onClientSubmit) {
+      const formData = new FormData(form)
+      const payload: ClientFormValues = {
+        company: String(formData.get('company') ?? ''),
+        contact: String(formData.get('contact') ?? ''),
+        phone: String(formData.get('phone') ?? ''),
+        email: String(formData.get('email') ?? ''),
+        service: String(formData.get('service') ?? 'Web Design') as ServiceName,
+        status: String(formData.get('status') ?? 'Lead') as ClientStatus,
+        notes: String(formData.get('notes') ?? ''),
+      }
+
+      setIsSubmitting(true)
+      try {
+        await onClientSubmit(payload)
+        setOpen(false)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
+    if (entity === 'project' && onProjectSubmit) {
+      const formData = new FormData(form)
+      const payload: ProjectFormValues = {
+        name: String(formData.get('name') ?? ''),
+        clientId: String(formData.get('clientId') ?? ''),
+        service: String(formData.get('service') ?? 'Web Design') as ServiceName,
+        status: String(formData.get('status') ?? 'Planning') as ProjectStatus,
+        priority: String(formData.get('priority') ?? 'Medium') as PriorityLevel,
+        budget: Number(formData.get('budget') ?? 0),
+        startDate: String(formData.get('startDate') ?? ''),
+        deadline: String(formData.get('deadline') ?? ''),
+        progress: Number(formData.get('progress') ?? 0),
+        description: String(formData.get('description') ?? ''),
+      }
+
+      setIsSubmitting(true)
+      try {
+        await onProjectSubmit(payload)
+        setOpen(false)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
+    if (entity === 'task' && onTaskSubmit) {
+      const formData = new FormData(form)
+      const payload: TaskFormValues = {
+        title: String(formData.get('title') ?? ''),
+        projectId: String(formData.get('projectId') ?? ''),
+        assignedTo: String(formData.get('assignedTo') ?? ''),
+        priority: String(formData.get('priority') ?? 'Medium') as PriorityLevel,
+        status: String(formData.get('status') ?? 'Todo') as TaskStatus,
+        dueDate: String(formData.get('dueDate') ?? ''),
+        notes: String(formData.get('notes') ?? ''),
+      }
+
+      setIsSubmitting(true)
+      try {
+        await onTaskSubmit(payload)
+        setOpen(false)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
+    if (entity === 'proposal' && onProposalSubmit) {
+      const formData = new FormData(form)
+      const payload: ProposalFormValues = {
+        title: String(formData.get('title') ?? ''),
+        clientId: String(formData.get('clientId') ?? ''),
+        amount: Number(formData.get('amount') ?? 0),
+        sentDate: String(formData.get('sentDate') ?? ''),
+        status: String(formData.get('status') ?? 'Draft') as ProposalStatus,
+        followUp: String(formData.get('followUp') ?? ''),
+        notes: String(formData.get('notes') ?? ''),
+      }
+
+      setIsSubmitting(true)
+      try {
+        await onProposalSubmit(payload)
+        setOpen(false)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
+    if (entity === 'payment' && onPaymentSubmit) {
+      const formData = new FormData(form)
+      const payload: PaymentFormValues = {
+        clientId: String(formData.get('clientId') ?? ''),
+        projectId: String(formData.get('projectId') ?? ''),
+        amount: Number(formData.get('amount') ?? 0),
+        date: String(formData.get('date') ?? ''),
+        category: String(formData.get('category') ?? 'Web Design') as ServiceName,
+        status: String(formData.get('status') ?? 'Pending') as PaymentStatus,
+        method: String(formData.get('method') ?? ''),
+        notes: String(formData.get('notes') ?? ''),
+      }
+
+      setIsSubmitting(true)
+      try {
+        await onPaymentSubmit(payload)
+        setOpen(false)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
+    if (entity === 'note' && onNoteSubmit) {
+      const formData = new FormData(form)
+      const tagsRaw = String(formData.get('tags') ?? '')
+      const payload: NoteFormValues = {
+        title: String(formData.get('title') ?? ''),
+        category: String(formData.get('category') ?? 'Client Notes') as NoteCategory,
+        relatedType: String(formData.get('relatedType') ?? 'internal') as NoteRelatedType,
+        clientId: String(formData.get('clientId') ?? ''),
+        projectId: String(formData.get('projectId') ?? ''),
+        content: String(formData.get('content') ?? ''),
+        tags: tagsRaw
+          .split(',')
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+      }
+
+      setIsSubmitting(true)
+      try {
+        await onNoteSubmit(payload)
+        setOpen(false)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
+    if (entity === 'file' && onFileSubmit) {
+      const formData = new FormData(form)
+      const file = formData.get('file')
+
+      if (!(file instanceof File) || file.size === 0) {
+        return
+      }
+
+      const payload: FileFormValues = {
+        file,
+        category: String(formData.get('category') ?? 'Assets') as FileCategory,
+        clientId: String(formData.get('clientId') ?? ''),
+        projectId: String(formData.get('projectId') ?? ''),
+        notes: String(formData.get('notes') ?? ''),
+      }
+
+      setIsSubmitting(true)
+      try {
+        await onFileSubmit(payload)
+        setOpen(false)
+      } finally {
+        setIsSubmitting(false)
+      }
+      return
+    }
+
     setOpen(false)
   }
 
@@ -496,20 +1151,60 @@ export function CreateEntityDialog({ entity, trigger }: CreateEntityDialogProps)
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {entity === 'client' && <ClientFields />}
-          {entity === 'project' && <ProjectFields clientNames={clientNames} />}
-          {entity === 'task' && <TaskFields projectNames={projectNames} />}
-          {entity === 'payment' && <PaymentFields clientNames={clientNames} />}
-          {entity === 'proposal' && <ProposalFields clientNames={clientNames} />}
-          {entity === 'note' && <NoteFields />}
-          {entity === 'file' && <FileFields clientNames={clientNames} projectNames={projectNames} />}
+          {entity === 'project' && projectClientsError && (
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {projectClientsError}
+            </div>
+          )}
+          {entity === 'task' && taskProjectsError && (
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {taskProjectsError}
+            </div>
+          )}
+          {entity === 'proposal' && proposalClientsError && (
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {proposalClientsError}
+            </div>
+          )}
+          {entity === 'payment' && paymentOptionsError && (
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {paymentOptionsError}
+            </div>
+          )}
+          {entity === 'note' && noteOptionsError && (
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {noteOptionsError}
+            </div>
+          )}
+          {entity === 'file' && fileOptionsError && (
+            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {fileOptionsError}
+            </div>
+          )}
+          {entity === 'client' && <ClientFields initialValues={clientInitialValues} />}
+          {entity === 'project' && <ProjectFields clientOptions={projectClientOptions} initialValues={projectInitialValues} />}
+          {entity === 'task' && <TaskFields projectOptions={taskProjectOptions} initialValues={taskInitialValues} />}
+          {entity === 'payment' && <PaymentFields clientOptions={paymentClientOptions} projectOptions={paymentProjectOptions} initialValues={paymentInitialValues} />}
+          {entity === 'proposal' && <ProposalFields clientOptions={proposalClientOptions} initialValues={proposalInitialValues} />}
+          {entity === 'note' && <NoteFields clientOptions={noteClientOptions} projectOptions={noteProjectOptions} initialValues={noteInitialValues} />}
+          {entity === 'file' && <FileFields clientOptions={fileClientOptions} projectOptions={fileProjectOptions} />}
           {entity === 'invite' && <InviteFields />}
 
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" className="border-border">İptal</Button>
             </DialogClose>
-            <Button type="submit" className="bg-primary text-primary-foreground hover:bg-primary/90">
+            <Button
+              type="submit"
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
+              disabled={
+                isSubmitting ||
+                (entity === 'project' && projectClientOptions.length === 0) ||
+                (entity === 'task' && taskProjectOptions.length === 0) ||
+                (entity === 'proposal' && proposalClientOptions.length === 0) ||
+                (entity === 'payment' && paymentClientOptions.length === 0)
+              }
+            >
               {meta.saveLabel}
             </Button>
           </DialogFooter>

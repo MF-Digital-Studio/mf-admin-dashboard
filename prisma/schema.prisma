@@ -60,6 +60,28 @@ enum ProposalStatus {
   REJECTED
 }
 
+enum NoteCategory {
+  CLIENT_NOTES
+  MEETING_NOTES
+  INTERNAL_IDEAS
+  REVISION_REQUESTS
+}
+
+enum NoteRelatedType {
+  CLIENT
+  PROJECT
+  INTERNAL
+}
+
+enum FileCategory {
+  LOGOS
+  CONTRACTS
+  ASSETS
+  DELIVERABLES
+  SCREENSHOTS
+  DOCUMENTS
+}
+
 model Client {
   id            String       @id @default(cuid())
   companyName   String
@@ -76,6 +98,8 @@ model Client {
   tasks     Task[]
   payments  Payment[]
   proposals Proposal[]
+  clientNotes Note[]
+  files       StoredFile[]
 
   @@index([companyName])
   @@index([status])
@@ -101,6 +125,8 @@ model Project {
   tasks     Task[]
   payments  Payment[]
   proposals Proposal[]
+  projectNotes Note[]
+  files        StoredFile[]
 
   @@index([clientId])
   @@index([status])
@@ -170,4 +196,51 @@ model Proposal {
   @@index([clientId])
   @@index([projectId])
   @@index([status])
+}
+
+model Note {
+  id          String          @id @default(cuid())
+  title       String
+  content     String
+  category    NoteCategory
+  relatedType NoteRelatedType @default(INTERNAL)
+  tags        String[]        @default([])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([category])
+  @@index([relatedType])
+  @@index([clientId])
+  @@index([projectId])
+}
+
+model StoredFile {
+  id           String       @id @default(cuid())
+  name         String
+  blobUrl      String
+  blobPathname String       @unique
+  sizeBytes    Int
+  mimeType     String
+  extension    String
+  category     FileCategory
+  notes        String?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@index([category])
+  @@index([clientId])
+  @@index([projectId])
+  @@index([createdAt])
 }

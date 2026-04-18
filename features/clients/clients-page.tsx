@@ -1,20 +1,17 @@
-﻿'use client'
+'use client'
 
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronRight, Mail, MapPin, Phone, X } from 'lucide-react'
-import { clients } from '@/features/clients/data'
-import { projects } from '@/features/projects/data'
-import { payments } from '@/features/finance/data'
 import { BadgePill, StatusBadge } from '@/components/shared/badges'
 import { FilterGroup } from '@/components/shared/filter-group'
 import { PageHeader } from '@/components/shared/page-header'
 import { SearchField } from '@/components/shared/search-field'
 import { TableWrapper } from '@/components/shared/table-wrapper'
 import { Button } from '@/components/ui/button'
-import { CreateEntityDialog } from '@/components/shared/create-entity-dialog'
+import { CreateEntityDialog, type ClientFormValues } from '@/components/shared/create-entity-dialog'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/format'
-import type { ServiceName } from '@/types'
+import type { Client, Payment, Project, ServiceName } from '@/types'
 
 const statuses = ['All', 'Active', 'Lead', 'In Discussion', 'Completed', 'Inactive']
 const serviceTypes = ['All', 'Web Design', 'SEO', 'QR Menu', 'E-commerce']
@@ -33,11 +30,89 @@ const serviceLabelMap: Record<ServiceName, string> = {
   'E-commerce': 'E-ticaret',
 }
 
+type ClientDetailsResponse = {
+  client: Client
+  editable: ClientFormValues
+  projects: Array<Pick<Project, 'id' | 'name' | 'status' | 'progress'>>
+  payments: Array<Pick<Payment, 'id' | 'date' | 'status' | 'amount'>>
+}
+
+async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
+  const response = await fetch(input, init)
+  if (!response.ok) {
+    const data = (await response.json().catch(() => null)) as { message?: string } | null
+    throw new Error(data?.message ?? 'Request failed')
+  }
+
+  return (await response.json()) as T
+}
+
 export function ClientsPage() {
+  const [clients, setClients] = useState<Client[]>([])
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [serviceFilter, setServiceFilter] = useState('All')
   const [selected, setSelected] = useState<string | null>(null)
+  const [selectedDetails, setSelectedDetails] = useState<ClientDetailsResponse | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isDetailLoading, setIsDetailLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const loadClients = useCallback(async () => {
+    const data = await fetchJson<Client[]>('/api/clients')
+    setClients(data)
+  }, [])
+
+  const loadClientDetails = useCallback(async (id: string) => {
+    setIsDetailLoading(true)
+    try {
+      const data = await fetchJson<ClientDetailsResponse>(`/api/clients/${id}`)
+      setSelectedDetails(data)
+    } finally {
+      setIsDetailLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+
+    const run = async () => {
+      setIsLoading(true)
+      setError(null)
+      try {
+        const data = await fetchJson<Client[]>('/api/clients')
+        if (mounted) {
+          setClients(data)
+        }
+      } catch (err) {
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Failed to load clients')
+        }
+      } finally {
+        if (mounted) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    void run()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!selected) {
+      setSelectedDetails(null)
+      return
+    }
+
+    setError(null)
+    void loadClientDetails(selected).catch((err) => {
+      setError(err instanceof Error ? err.message : 'Failed to load client details')
+    })
+  }, [loadClientDetails, selected])
 
   const filtered = useMemo(
     () =>
@@ -50,12 +125,89 @@ export function ClientsPage() {
 
         return matchSearch && matchStatus && matchService
       }),
-    [search, serviceFilter, statusFilter]
+    [clients, search, serviceFilter, statusFilter]
   )
 
-  const selectedClient = clients.find((client) => client.id === selected)
-  const clientProjects = selectedClient ? projects.filter((project) => project.clientId === selectedClient.id) : []
-  const clientPayments = selectedClient ? payments.filter((payment) => payment.client === selectedClient.company) : []
+  const selectedClient = selectedDetails?.client ?? clients.find((client) => client.id === selected) ?? null
+  const clientProjects = selectedDetails?.projects ?? []
+  const clientPayments = selectedDetails?.payments ?? []
+
+  const selectedEditableValues: ClientFormValues | undefined = selectedDetails?.editable
+    ? selectedDetails.editable
+    : selectedClient
+    ? {
+        company: selectedClient.company,
+        contact: selectedClient.contact,
+        phone: selectedClient.phone,
+        email: selectedClient.email,
+        service: selectedClient.services[0] ?? 'Web Design',
+        status: selectedClient.status,
+        notes: selectedClient.notes ?? '',
+      }
+    : undefined
+
+  const handleCreateClient = async (payload: ClientFormValues) => {
+    setError(null)
+    try {
+      await fetchJson('/api/clients', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      await loadClients()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to create client'
+      setError(message)
+      throw err
+    }
+  }
+
+  const handleUpdateClient = async (payload: ClientFormValues) => {
+    if (!selected) {
+      return
+    }
+
+    setError(null)
+    try {
+      await fetchJson(`/api/clients/${selected}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+      await Promise.all([loadClients(), loadClientDetails(selected)])
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to update client'
+      setError(message)
+      throw err
+    }
+  }
+
+  const handleDeleteClient = async () => {
+    if (!selectedClient) {
+      return
+    }
+
+    const confirmed = window.confirm(`"${selectedClient.company}" kaydini silmek istiyor musunuz?`)
+    if (!confirmed) {
+      return
+    }
+
+    setError(null)
+    try {
+      await fetchJson(`/api/clients/${selectedClient.id}`, {
+        method: 'DELETE',
+      })
+      setSelected(null)
+      setSelectedDetails(null)
+      await loadClients()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete client')
+    }
+  }
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -63,7 +215,13 @@ export function ClientsPage() {
         <PageHeader
           title="Müşteriler"
           description={`${clients.length} toplam müşteri`}
-          action={<CreateEntityDialog entity="client" trigger={<Button size="sm" className="h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90">+ Müşteri Ekle</Button>} />}
+          action={
+            <CreateEntityDialog
+              entity="client"
+              trigger={<Button size="sm" className="h-8 text-sm bg-primary text-primary-foreground hover:bg-primary/90">+ Müşteri Ekle</Button>}
+              onClientSubmit={handleCreateClient}
+            />
+          }
         />
 
         <div className="flex flex-col sm:flex-row gap-3">
@@ -71,6 +229,12 @@ export function ClientsPage() {
           <FilterGroup options={statuses} value={statusFilter} onChange={setStatusFilter} />
           <FilterGroup options={serviceTypes} value={serviceFilter} onChange={setServiceFilter} />
         </div>
+
+        {error && (
+          <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+            {error}
+          </div>
+        )}
 
         <TableWrapper title="Müşteri Listesi">
           <div className="overflow-x-auto">
@@ -85,52 +249,58 @@ export function ClientsPage() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((client, index) => (
-                  <tr
-                    key={client.id}
-                    onClick={() => setSelected(client.id === selected ? null : client.id)}
-                    className={cn(
-                      'border-b border-border/50 hover:bg-secondary/40 transition-colors cursor-pointer',
-                      client.id === selected && 'bg-secondary/60',
-                      index === filtered.length - 1 && 'border-0'
-                    )}
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                          <span className="text-xs font-bold text-primary">{client.company.charAt(0)}</span>
+                {!isLoading &&
+                  filtered.map((client, index) => (
+                    <tr
+                      key={client.id}
+                      onClick={() => setSelected(client.id === selected ? null : client.id)}
+                      className={cn(
+                        'border-b border-border/50 hover:bg-secondary/40 transition-colors cursor-pointer',
+                        client.id === selected && 'bg-secondary/60',
+                        index === filtered.length - 1 && 'border-0'
+                      )}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                            <span className="text-xs font-bold text-primary">{client.company.charAt(0)}</span>
+                          </div>
+                          <div>
+                            <p className="font-medium text-foreground">{client.company}</p>
+                            <p className="text-xs text-muted-foreground">{client.location}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-foreground">{client.company}</p>
-                          <p className="text-xs text-muted-foreground">{client.location}</p>
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{client.contact}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1 flex-wrap">
+                          {client.services.map((service) => (
+                            <BadgePill key={service} tone={serviceTone[service]} uppercase={false} className="px-1.5 py-0.5 text-[10px]">
+                              {serviceLabelMap[service]}
+                            </BadgePill>
+                          ))}
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{client.contact}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1 flex-wrap">
-                        {client.services.map((service) => (
-                          <BadgePill key={service} tone={serviceTone[service]} uppercase={false} className="px-1.5 py-0.5 text-[10px]">
-                            {serviceLabelMap[service]}
-                          </BadgePill>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3"><StatusBadge status={client.status} /></td>
-                    <td className="px-4 py-3 text-center font-semibold text-foreground">{client.activeProjects}</td>
-                    <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
-                      {client.totalPaid > 0 ? formatCurrency(client.totalPaid) : '—'}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{client.lastContact}</td>
-                    <td className="px-4 py-3">
-                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="px-4 py-3"><StatusBadge status={client.status} /></td>
+                      <td className="px-4 py-3 text-center font-semibold text-foreground">{client.activeProjects}</td>
+                      <td className="px-4 py-3 font-semibold text-foreground whitespace-nowrap">
+                        {client.totalPaid > 0 ? formatCurrency(client.totalPaid) : '—'}
+                      </td>
+                      <td className="px-4 py-3 text-muted-foreground whitespace-nowrap">{client.lastContact}</td>
+                      <td className="px-4 py-3">
+                        <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />
+                      </td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
-          {filtered.length === 0 && (
+          {isLoading && (
+            <div className="py-12 text-center">
+              <p className="text-sm text-muted-foreground">Müşteriler yükleniyor...</p>
+            </div>
+          )}
+          {!isLoading && filtered.length === 0 && (
             <div className="py-12 text-center">
               <p className="text-sm text-muted-foreground">Filtrelere uygun müşteri yok</p>
             </div>
@@ -140,11 +310,25 @@ export function ClientsPage() {
 
       {selectedClient && (
         <div className="w-full xl:w-[380px] border-l border-border bg-card overflow-y-auto shrink-0">
-          <div className="sticky top-0 bg-card border-b border-border px-5 py-4 flex items-center justify-between z-10">
-            <h3 className="text-base font-semibold text-foreground">Müşteri Detayı</h3>
-            <button onClick={() => setSelected(null)} className="p-1 rounded hover:bg-secondary transition-colors">
-              <X className="w-4 h-4 text-muted-foreground" />
-            </button>
+          <div className="sticky top-0 bg-card border-b border-border px-5 py-4 z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-semibold text-foreground">Müşteri Detayı</h3>
+              <button onClick={() => setSelected(null)} className="p-1 rounded hover:bg-secondary transition-colors">
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <CreateEntityDialog
+                entity="client"
+                mode="edit"
+                clientInitialValues={selectedEditableValues}
+                onClientSubmit={handleUpdateClient}
+                trigger={<Button size="sm" variant="outline" className="h-8 border-border">Düzenle</Button>}
+              />
+              <Button size="sm" variant="outline" className="h-8 border-red-500/30 text-red-300 hover:bg-red-500/10" onClick={handleDeleteClient}>
+                Sil
+              </Button>
+            </div>
           </div>
 
           <div className="p-5 space-y-5">
@@ -190,7 +374,9 @@ export function ClientsPage() {
             <div className="space-y-2">
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Projeler ({clientProjects.length})</p>
               <div className="space-y-2">
-                {clientProjects.length > 0 ? (
+                {isDetailLoading ? (
+                  <p className="text-sm text-muted-foreground">Detaylar yükleniyor...</p>
+                ) : clientProjects.length > 0 ? (
                   clientProjects.map((project) => (
                     <div key={project.id} className="p-3 rounded-lg bg-secondary border border-border">
                       <div className="flex items-center justify-between mb-1.5">
@@ -237,7 +423,7 @@ export function ClientsPage() {
             <div className="space-y-2">
               <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Notlar</p>
               <p className="text-sm text-muted-foreground bg-secondary rounded-lg p-3 border border-border leading-relaxed">
-                {selectedClient.notes}
+                {selectedClient.notes || 'Not yok'}
               </p>
             </div>
           </div>

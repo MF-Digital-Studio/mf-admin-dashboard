@@ -11,5 +11,5 @@ export interface Task {
   priority: PriorityLevel
   status: TaskStatus
   dueDate: string
+  notes?: string
 }
-

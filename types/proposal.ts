@@ -4,10 +4,12 @@ export interface Proposal {
   id: string
   title: string
   client: string
+  clientId: string
   amount: number
   sentDate: string | null
   status: ProposalStatus
   followUp: string | null
+  notes?: string
 }
 
 export interface PipelineStage {
@@ -15,4 +17,3 @@ export interface PipelineStage {
   count: number
   value: number
 }
-
