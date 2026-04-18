@@ -11,32 +11,25 @@ const DEFAULT_SETTINGS = {
 }
 
 export async function GET() {
-  let settings
-
   try {
-    settings = await prisma.settings.findUnique({
+    const settings = await prisma.settings.findUnique({
       where: { id: SETTINGS_ID },
     })
 
     if (!settings) {
-      settings = await prisma.settings.create({
-        data: {
-          id: SETTINGS_ID,
-          ...DEFAULT_SETTINGS,
-        },
-      })
+      return NextResponse.json(DEFAULT_SETTINGS)
     }
+
+    return NextResponse.json({
+      agencyName: settings.agencyName,
+      email: settings.email,
+      phone: settings.phone,
+      website: settings.website,
+      defaultCurrency: settings.defaultCurrency,
+    })
   } catch {
     return NextResponse.json(DEFAULT_SETTINGS)
   }
-
-  return NextResponse.json({
-    agencyName: settings.agencyName,
-    email: settings.email,
-    phone: settings.phone,
-    website: settings.website,
-    defaultCurrency: settings.defaultCurrency,
-  })
 }
 
 export async function PATCH(request: Request) {
@@ -81,12 +74,11 @@ export async function PATCH(request: Request) {
       defaultCurrency: updated.defaultCurrency,
     })
   } catch {
-    return NextResponse.json({
-      agencyName: data.agencyName ?? DEFAULT_SETTINGS.agencyName,
-      email: data.email ?? DEFAULT_SETTINGS.email,
-      phone: data.phone ?? DEFAULT_SETTINGS.phone,
-      website: data.website ?? DEFAULT_SETTINGS.website,
-      defaultCurrency: data.defaultCurrency ?? DEFAULT_SETTINGS.defaultCurrency,
-    })
+    return NextResponse.json(
+      {
+        message: 'Failed to save settings',
+      },
+      { status: 500 }
+    )
   }
 }

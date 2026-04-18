@@ -8,13 +8,7 @@ export async function GET() {
     // Ignore optional notification generation failures in production.
   }
 
-  let notifications = []
-  try {
-    notifications = await listRecentNotifications(12)
-  } catch {
-    notifications = []
-  }
-
+  const notifications = await listRecentNotifications(12).catch(() => [])
   return NextResponse.json(notifications)
 }
 

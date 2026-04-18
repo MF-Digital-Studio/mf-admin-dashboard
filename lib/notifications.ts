@@ -1,6 +1,6 @@
-import { NotificationEntityType, NotificationEventType, Prisma, type Notification } from '@prisma/client'
-import type { ActivityItem } from '@/types'
+import { type Notification, NotificationEntityType, NotificationEventType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import type { ActivityItem } from '@/types'
 
 const CRUD_EVENT_TO_NOTIFICATION: Record<'created' | 'updated' | 'deleted', NotificationEventType> = {
   created: 'CREATED',
@@ -54,36 +54,40 @@ export interface CreateNotificationInput {
   dedupeKey?: string
 }
 
-export async function createNotification(input: CreateNotificationInput) {
-  if (input.dedupeKey) {
-    return prisma.notification.upsert({
-      where: {
-        dedupeKey: input.dedupeKey,
-      },
-      update: {
-        title: input.title,
-        message: input.message,
-      },
-      create: {
+export async function createNotification(input: CreateNotificationInput): Promise<Notification | null> {
+  try {
+    if (input.dedupeKey) {
+      return await prisma.notification.upsert({
+        where: {
+          dedupeKey: input.dedupeKey,
+        },
+        update: {
+          title: input.title,
+          message: input.message,
+        },
+        create: {
+          title: input.title,
+          message: input.message,
+          eventType: input.eventType,
+          entityType: input.entityType,
+          entityId: input.entityId ?? null,
+          dedupeKey: input.dedupeKey,
+        },
+      })
+    }
+
+    return await prisma.notification.create({
+      data: {
         title: input.title,
         message: input.message,
         eventType: input.eventType,
         entityType: input.entityType,
         entityId: input.entityId ?? null,
-        dedupeKey: input.dedupeKey,
       },
     })
+  } catch {
+    return null
   }
-
-  return prisma.notification.create({
-    data: {
-      title: input.title,
-      message: input.message,
-      eventType: input.eventType,
-      entityType: input.entityType,
-      entityId: input.entityId ?? null,
-    },
-  })
 }
 
 export async function createCrudNotification(args: {
@@ -135,20 +139,27 @@ export async function listRecentNotifications(limit = 6) {
       createdAt: notification.createdAt.toISOString(),
       time: formatRelativeTime(notification.createdAt),
     }))
-  } catch (err) {
-    // If the DB doesn't have the column (migration not applied), fall back to returning recent notifications
-    const notifications = await prisma.notification.findMany({ orderBy: { createdAt: 'desc' }, take: limit })
-    return notifications.map((notification) => ({
-      id: notification.id,
-      title: notification.title,
-      message: notification.message,
-      eventType: notification.eventType,
-      entityType: notification.entityType,
-      entityId: notification.entityId,
-      read: notification.read,
-      createdAt: notification.createdAt.toISOString(),
-      time: formatRelativeTime(notification.createdAt),
-    }))
+  } catch {
+    try {
+      const notifications = await prisma.notification.findMany({
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+      })
+
+      return notifications.map((notification) => ({
+        id: notification.id,
+        title: notification.title,
+        message: notification.message,
+        eventType: notification.eventType,
+        entityType: notification.entityType,
+        entityId: notification.entityId,
+        read: notification.read,
+        createdAt: notification.createdAt.toISOString(),
+        time: formatRelativeTime(notification.createdAt),
+      }))
+    } catch {
+      return []
+    }
   }
 }
 
@@ -162,190 +173,202 @@ export async function clearBellNotifications() {
         hiddenFromBell: true,
       },
     })
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError) {
-      return { count: 0 }
-    }
-
+  } catch {
     return { count: 0 }
   }
 }
 
 export async function listRecentActivities(limit = 6) {
-  const notifications = await prisma.notification.findMany({
-    orderBy: {
-      createdAt: 'desc',
-    },
-    take: limit,
-  })
+  try {
+    const notifications = await prisma.notification.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+    })
 
-  return notifications.map(mapNotificationToActivityItem)
+    return notifications.map(mapNotificationToActivityItem)
+  } catch {
+    return []
+  }
 }
 
 export async function markNotificationRead(id: string) {
-  return prisma.notification.update({
-    where: { id },
-    data: { read: true },
-  })
+  try {
+    return await prisma.notification.update({
+      where: { id },
+      data: { read: true },
+    })
+  } catch {
+    return null
+  }
 }
 
 export async function markAllNotificationsRead() {
-  return prisma.notification.updateMany({
-    where: {
-      read: false,
-    },
-    data: {
-      read: true,
-    },
-  })
+  try {
+    return await prisma.notification.updateMany({
+      where: {
+        read: false,
+      },
+      data: {
+        read: true,
+      },
+    })
+  } catch {
+    return { count: 0 }
+  }
 }
 
 export async function ensureSystemNotifications() {
-  const now = new Date()
-  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
-  const dueSoonBoundary = new Date(today)
-  dueSoonBoundary.setUTCDate(dueSoonBoundary.getUTCDate() + 3)
+  try {
+    const now = new Date()
+    const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
+    const dueSoonBoundary = new Date(today)
+    dueSoonBoundary.setUTCDate(dueSoonBoundary.getUTCDate() + 3)
 
-  const [tasksDueSoon, overdueTasks, projectsDueSoon, overdueProjects] = await Promise.all([
-    prisma.task.findMany({
-      where: {
-        dueDate: { gte: today, lte: dueSoonBoundary },
-        status: { not: 'DONE' },
-      },
-      select: {
-        id: true,
-        title: true,
-        dueDate: true,
-        project: {
-          select: {
-            name: true,
+    const [tasksDueSoon, overdueTasks, projectsDueSoon, overdueProjects] = await Promise.all([
+      prisma.task.findMany({
+        where: {
+          dueDate: { gte: today, lte: dueSoonBoundary },
+          status: { not: 'DONE' },
+        },
+        select: {
+          id: true,
+          title: true,
+          dueDate: true,
+          project: {
+            select: {
+              name: true,
+            },
           },
         },
-      },
-      take: 50,
-    }),
-    prisma.task.findMany({
-      where: {
-        dueDate: { lt: today },
-        status: { not: 'DONE' },
-      },
-      select: {
-        id: true,
-        title: true,
-        dueDate: true,
-        project: {
-          select: {
-            name: true,
+        take: 50,
+      }),
+      prisma.task.findMany({
+        where: {
+          dueDate: { lt: today },
+          status: { not: 'DONE' },
+        },
+        select: {
+          id: true,
+          title: true,
+          dueDate: true,
+          project: {
+            select: {
+              name: true,
+            },
           },
         },
-      },
-      take: 50,
-    }),
-    prisma.project.findMany({
-      where: {
-        deadline: { gte: today, lte: dueSoonBoundary },
-        status: { not: 'COMPLETED' },
-      },
-      select: {
-        id: true,
-        name: true,
-        deadline: true,
-        client: {
-          select: {
-            companyName: true,
+        take: 50,
+      }),
+      prisma.project.findMany({
+        where: {
+          deadline: { gte: today, lte: dueSoonBoundary },
+          status: { not: 'COMPLETED' },
+        },
+        select: {
+          id: true,
+          name: true,
+          deadline: true,
+          client: {
+            select: {
+              companyName: true,
+            },
           },
         },
-      },
-      take: 50,
-    }),
-    prisma.project.findMany({
-      where: {
-        deadline: { lt: today },
-        status: { not: 'COMPLETED' },
-      },
-      select: {
-        id: true,
-        name: true,
-        deadline: true,
-        client: {
-          select: {
-            companyName: true,
+        take: 50,
+      }),
+      prisma.project.findMany({
+        where: {
+          deadline: { lt: today },
+          status: { not: 'COMPLETED' },
+        },
+        select: {
+          id: true,
+          name: true,
+          deadline: true,
+          client: {
+            select: {
+              companyName: true,
+            },
           },
         },
-      },
-      take: 50,
-    }),
-  ])
+        take: 50,
+      }),
+    ])
 
-  const jobs: Promise<unknown>[] = []
+    const jobs: Promise<unknown>[] = []
 
-  for (const task of tasksDueSoon) {
-    if (!task.dueDate) {
-      continue
+    for (const task of tasksDueSoon) {
+      if (!task.dueDate) {
+        continue
+      }
+
+      jobs.push(
+        createNotification({
+          title: 'Yaklaşan görev tarihi',
+          message: `${task.title} - ${task.project.name} (${toDateKey(task.dueDate)})`,
+          eventType: 'DUE_SOON',
+          entityType: 'TASK',
+          entityId: task.id,
+          dedupeKey: `due_soon:task:${task.id}:${toDateKey(task.dueDate)}`,
+        })
+      )
     }
 
-    jobs.push(
-      createNotification({
-        title: 'Yaklaşan görev tarihi',
-        message: `${task.title} - ${task.project.name} (${toDateKey(task.dueDate)})`,
-        eventType: 'DUE_SOON',
-        entityType: 'TASK',
-        entityId: task.id,
-        dedupeKey: `due_soon:task:${task.id}:${toDateKey(task.dueDate)}`,
-      })
-    )
-  }
+    for (const task of overdueTasks) {
+      if (!task.dueDate) {
+        continue
+      }
 
-  for (const task of overdueTasks) {
-    if (!task.dueDate) {
-      continue
+      jobs.push(
+        createNotification({
+          title: 'Geciken görev',
+          message: `${task.title} - ${task.project.name} (${toDateKey(task.dueDate)})`,
+          eventType: 'OVERDUE',
+          entityType: 'TASK',
+          entityId: task.id,
+          dedupeKey: `overdue:task:${task.id}:${toDateKey(task.dueDate)}`,
+        })
+      )
     }
 
-    jobs.push(
-      createNotification({
-        title: 'Geciken görev',
-        message: `${task.title} - ${task.project.name} (${toDateKey(task.dueDate)})`,
-        eventType: 'OVERDUE',
-        entityType: 'TASK',
-        entityId: task.id,
-        dedupeKey: `overdue:task:${task.id}:${toDateKey(task.dueDate)}`,
-      })
-    )
-  }
+    for (const project of projectsDueSoon) {
+      if (!project.deadline) {
+        continue
+      }
 
-  for (const project of projectsDueSoon) {
-    if (!project.deadline) {
-      continue
+      jobs.push(
+        createNotification({
+          title: 'Yaklaşan proje teslimi',
+          message: `${project.name} - ${project.client.companyName} (${toDateKey(project.deadline)})`,
+          eventType: 'DUE_SOON',
+          entityType: 'PROJECT',
+          entityId: project.id,
+          dedupeKey: `due_soon:project:${project.id}:${toDateKey(project.deadline)}`,
+        })
+      )
     }
 
-    jobs.push(
-      createNotification({
-        title: 'Yaklaşan proje teslimi',
-        message: `${project.name} - ${project.client.companyName} (${toDateKey(project.deadline)})`,
-        eventType: 'DUE_SOON',
-        entityType: 'PROJECT',
-        entityId: project.id,
-        dedupeKey: `due_soon:project:${project.id}:${toDateKey(project.deadline)}`,
-      })
-    )
-  }
+    for (const project of overdueProjects) {
+      if (!project.deadline) {
+        continue
+      }
 
-  for (const project of overdueProjects) {
-    if (!project.deadline) {
-      continue
+      jobs.push(
+        createNotification({
+          title: 'Geciken proje teslimi',
+          message: `${project.name} - ${project.client.companyName} (${toDateKey(project.deadline)})`,
+          eventType: 'OVERDUE',
+          entityType: 'PROJECT',
+          entityId: project.id,
+          dedupeKey: `overdue:project:${project.id}:${toDateKey(project.deadline)}`,
+        })
+      )
     }
 
-    jobs.push(
-      createNotification({
-        title: 'Geciken proje teslimi',
-        message: `${project.name} - ${project.client.companyName} (${toDateKey(project.deadline)})`,
-        eventType: 'OVERDUE',
-        entityType: 'PROJECT',
-        entityId: project.id,
-        dedupeKey: `overdue:project:${project.id}:${toDateKey(project.deadline)}`,
-      })
-    )
+    await Promise.all(jobs)
+  } catch {
+    return
   }
-
-  await Promise.all(jobs)
 }

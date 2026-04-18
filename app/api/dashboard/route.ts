@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { ensureSystemNotifications, listRecentActivities } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
-import type { MonthlyRevenuePoint } from '@/types'
+import type { ActivityItem, MonthlyRevenuePoint } from '@/types'
 
 function monthKey(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
@@ -159,7 +159,7 @@ export async function GET() {
     // Ignore notification generation failures so dashboard still returns core data.
   }
 
-  let activities = []
+  let activities: ActivityItem[] = []
   try {
     activities = await listRecentActivities(6)
   } catch {

@@ -7,6 +7,6 @@ interface Params {
 
 export async function PATCH(_: Request, { params }: Params) {
   const { id } = await params
-  await markNotificationRead(id)
+  await markNotificationRead(id).catch(() => null)
   return NextResponse.json({ ok: true })
 }
