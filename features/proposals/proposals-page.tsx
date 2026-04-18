@@ -8,9 +8,11 @@ import { StatCard } from '@/components/shared/stat-card'
 import { TableWrapper } from '@/components/shared/table-wrapper'
 import { Button } from '@/components/ui/button'
 import { CreateEntityDialog, type ProposalFormValues } from '@/components/shared/create-entity-dialog'
+import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 import { cn } from '@/lib/utils'
 import { formatCompactCurrency, formatCurrency } from '@/lib/format'
 import type { PipelineStage, Proposal } from '@/types'
+import { toast } from 'sonner'
 
 const pipelineColors: Record<string, string> = {
   'Yeni Potansiyel': 'bg-slate-500',
@@ -146,6 +148,8 @@ export function ProposalsPage() {
         body: JSON.stringify(payload),
       })
       await loadProposals()
+      toast.success('Teklif oluşturuldu')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create proposal'
       setError(message)
@@ -168,6 +172,8 @@ export function ProposalsPage() {
         body: JSON.stringify(payload),
       })
       await Promise.all([loadProposals(), loadProposalDetails(activeProposalId)])
+      toast.success('Teklif güncellendi')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update proposal'
       setError(message)
@@ -191,6 +197,8 @@ export function ProposalsPage() {
         setProposalDetails(null)
       }
       await loadProposals()
+      toast.success('Teklif silindi')
+      emitDashboardDataRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete proposal')
     }

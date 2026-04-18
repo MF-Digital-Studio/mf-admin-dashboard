@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapNoteCategoryToPrisma, mapNoteRelatedTypeToPrisma, mapPrismaNoteToEditable, mapPrismaNoteToNote } from '@/features/notes/mappers'
 import { notePayloadSchema } from '@/features/notes/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -75,6 +76,14 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     })
 
+    await createCrudNotification({
+      action: 'updated',
+      entityType: 'NOTE',
+      entityId: updated.id,
+      entityLabel: 'Not',
+      detail: updated.title,
+    }).catch(() => undefined)
+
     return NextResponse.json(mapPrismaNoteToNote(updated))
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -91,9 +100,17 @@ export async function DELETE(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    await prisma.note.delete({
+    const deleted = await prisma.note.delete({
       where: { id },
     })
+
+    await createCrudNotification({
+      action: 'deleted',
+      entityType: 'NOTE',
+      entityId: deleted.id,
+      entityLabel: 'Not',
+      detail: deleted.title,
+    }).catch(() => undefined)
 
     return NextResponse.json({ ok: true })
   } catch (error) {

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaTaskToEditable, mapPrismaTaskToTask, mapTaskPriorityToPrisma, mapTaskStatusToPrisma } from '@/features/tasks/mappers'
 import { taskPayloadSchema } from '@/features/tasks/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -78,6 +79,14 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     })
 
+    await createCrudNotification({
+      action: 'updated',
+      entityType: 'TASK',
+      entityId: updated.id,
+      entityLabel: 'Görev',
+      detail: updated.title,
+    }).catch(() => undefined)
+
     return NextResponse.json(mapPrismaTaskToTask(updated))
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
@@ -92,9 +101,17 @@ export async function DELETE(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    await prisma.task.delete({
+    const deleted = await prisma.task.delete({
       where: { id },
     })
+
+    await createCrudNotification({
+      action: 'deleted',
+      entityType: 'TASK',
+      entityId: deleted.id,
+      entityLabel: 'Görev',
+      detail: deleted.title,
+    }).catch(() => undefined)
 
     return NextResponse.json({ ok: true })
   } catch (error) {

@@ -12,7 +12,6 @@ import {
   BarChart3,
   FileText,
   StickyNote,
-  Files,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -29,7 +28,6 @@ const navItems: Array<{ label: string; icon: typeof LayoutDashboard; href: strin
   { label: 'Finans', icon: BarChart3, href: '/finance', id: 'finance' },
   { label: 'Teklifler', icon: FileText, href: '/proposals', id: 'proposals' },
   { label: 'Notlar', icon: StickyNote, href: '/notes', id: 'notes' },
-  { label: 'Dosyalar', icon: Files, href: '/files', id: 'files' },
   { label: 'Ayarlar', icon: Settings, href: '/settings', id: 'settings' },
 ]
 

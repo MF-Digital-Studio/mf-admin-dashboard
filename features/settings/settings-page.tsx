@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useState } from 'react'
-import { Bell, Check, Palette, User, Users } from 'lucide-react'
+import { Check, Palette, User, Users } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -12,7 +12,6 @@ import { CreateEntityDialog } from '@/components/shared/create-entity-dialog'
 const tabs = [
   { id: 'general', label: 'Genel', icon: User },
   { id: 'team', label: 'Ekip', icon: Users },
-  { id: 'notifications', label: 'Bildirimler', icon: Bell },
   { id: 'appearance', label: 'Görünüm', icon: Palette },
 ]
 
@@ -122,32 +121,6 @@ export function SettingsPage() {
                   </div>
                   <span className="text-sm text-muted-foreground">{member.role}</span>
                   <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">Aktif</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'notifications' && (
-          <div className="max-w-xl space-y-6">
-            <PageHeader title="Bildirimler" description="Uyarıları ne zaman ve nasıl alacağını ayarla" />
-
-            <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-              {[
-                { label: 'Ödeme alındı', desc: 'Müşteri ödemesi işlendiğinde bildir', defaultOn: true },
-                { label: 'Teklif kabul edildi', desc: 'Müşteri teklifi kabul ettiğinde bildir', defaultOn: true },
-                { label: 'Görev gecikti', desc: 'Geciken görevler için günlük özet', defaultOn: true },
-                { label: 'Proje teslim tarihi', desc: 'Teslim tarihinden 3 gün önce bildir', defaultOn: false },
-                { label: 'Yeni müşteri eklendi', desc: 'Yeni müşteri oluşturulduğunda bildir', defaultOn: false },
-              ].map((item) => (
-                <div key={item.label} className="flex items-center justify-between py-2 border-b border-border/50 last:border-0">
-                  <div>
-                    <p className="text-sm font-medium text-foreground">{item.label}</p>
-                    <p className="text-sm text-muted-foreground">{item.desc}</p>
-                  </div>
-                  <button className={cn('w-10 h-5 rounded-full relative transition-colors', item.defaultOn ? 'bg-primary' : 'bg-secondary border border-border')}>
-                    <span className={cn('absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all shadow-sm', item.defaultOn ? 'left-5' : 'left-0.5')} />
-                  </button>
                 </div>
               ))}
             </div>

@@ -1,6 +1,6 @@
-'use client'
+﻿'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Users,
   FolderKanban,
@@ -13,6 +13,7 @@ import {
   DollarSign,
   Star,
   Target,
+  StickyNote,
 } from 'lucide-react'
 import {
   AreaChart,
@@ -29,8 +30,9 @@ import {
 import { StatusBadge } from '@/components/shared/badges'
 import { StatCard } from '@/components/shared/stat-card'
 import { TableWrapper } from '@/components/shared/table-wrapper'
-import { cn } from '@/lib/utils'
+import { onDashboardDataRefresh } from '@/lib/dashboard-events'
 import { formatCurrency } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import type { ActivityItem, MonthlyRevenuePoint } from '@/types'
 
 type DashboardOverviewData = {
@@ -50,13 +52,13 @@ type DashboardOverviewData = {
   activities: ActivityItem[]
 }
 
-const activityIcon: Record<string, string> = {
-  payment: '💳',
-  task: '✅',
-  proposal: '📄',
-  client: '👤',
-  project: '🗂️',
-  file: '📁',
+const activityIcon: Record<string, React.ComponentType<{ className?: string }>> = {
+  payment: DollarSign,
+  task: CheckSquare,
+  proposal: FileText,
+  client: Users,
+  project: FolderKanban,
+  note: StickyNote,
 }
 
 const fallbackData: DashboardOverviewData = {
@@ -113,22 +115,25 @@ export function OverviewPage() {
   const [data, setData] = useState<DashboardOverviewData>(fallbackData)
   const [error, setError] = useState<string | null>(null)
 
+  const loadDashboard = useCallback(async () => {
+    setError(null)
+    const response = await fetch('/api/dashboard')
+    if (!response.ok) {
+      throw new Error('Dashboard verileri alınamadı')
+    }
+    const json = (await response.json()) as DashboardOverviewData
+    setData({
+      ...fallbackData,
+      ...json,
+    })
+  }, [])
+
   useEffect(() => {
     let mounted = true
+
     const run = async () => {
-      setError(null)
       try {
-        const response = await fetch('/api/dashboard')
-        if (!response.ok) {
-          throw new Error('Dashboard verileri alınamadı')
-        }
-        const json = (await response.json()) as DashboardOverviewData
-        if (mounted) {
-          setData({
-            ...fallbackData,
-            ...json,
-          })
-        }
+        await loadDashboard()
       } catch (err) {
         if (mounted) {
           setError(err instanceof Error ? err.message : 'Dashboard verileri alınamadı')
@@ -136,11 +141,20 @@ export function OverviewPage() {
       }
     }
 
+    const sync = () => {
+      void run()
+    }
+
     void run()
+    const cleanupRefreshListener = onDashboardDataRefresh(sync)
+    const intervalId = window.setInterval(sync, 60000)
+
     return () => {
       mounted = false
+      cleanupRefreshListener()
+      window.clearInterval(intervalId)
     }
-  }, [])
+  }, [loadDashboard])
 
   const kpiCards = useMemo(
     () => [
@@ -321,16 +335,23 @@ export function OverviewPage() {
           <h3 className="text-base font-semibold text-foreground mb-4">Son Aktiviteler</h3>
           <div className="space-y-3">
             {data.activities.length > 0 ? (
-              data.activities.map((activity) => (
-                <div key={activity.id} className="flex items-start gap-3">
-                  <span className="text-sm mt-0.5">{activityIcon[activity.type] || '•'}</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground font-medium truncate">{activity.action}</p>
-                    <p className="text-sm text-muted-foreground truncate">{activity.detail}</p>
+              data.activities.map((activity) => {
+                const ActivityIcon = activityIcon[activity.type]
+                return (
+                  <div key={activity.id} className="flex items-start gap-3">
+                    {ActivityIcon ? (
+                      <ActivityIcon className="w-3.5 h-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                    ) : (
+                      <span className="text-sm mt-0.5 text-muted-foreground shrink-0">•</span>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-foreground font-medium truncate">{activity.action}</p>
+                      <p className="text-sm text-muted-foreground truncate">{activity.detail}</p>
+                    </div>
+                    <span className="text-sm text-muted-foreground shrink-0">{activity.time}</span>
                   </div>
-                  <span className="text-sm text-muted-foreground shrink-0">{activity.time}</span>
-                </div>
-              ))
+                )
+              })
             ) : (
               <p className="text-sm text-muted-foreground">Henüz aktivite yok</p>
             )}

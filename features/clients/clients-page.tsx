@@ -9,9 +9,11 @@ import { SearchField } from '@/components/shared/search-field'
 import { TableWrapper } from '@/components/shared/table-wrapper'
 import { Button } from '@/components/ui/button'
 import { CreateEntityDialog, type ClientFormValues } from '@/components/shared/create-entity-dialog'
+import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/format'
 import type { Client, Payment, Project, ServiceName } from '@/types'
+import { toast } from 'sonner'
 
 const statuses = ['All', 'Active', 'Lead', 'In Discussion', 'Completed', 'Inactive']
 const serviceTypes = ['All', 'Web Design', 'SEO', 'QR Menu', 'E-commerce']
@@ -157,6 +159,8 @@ export function ClientsPage() {
         body: JSON.stringify(payload),
       })
       await loadClients()
+      toast.success('Müşteri oluşturuldu')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create client'
       setError(message)
@@ -179,6 +183,8 @@ export function ClientsPage() {
         body: JSON.stringify(payload),
       })
       await Promise.all([loadClients(), loadClientDetails(selected)])
+      toast.success('Müşteri güncellendi')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update client'
       setError(message)
@@ -204,6 +210,8 @@ export function ClientsPage() {
       setSelected(null)
       setSelectedDetails(null)
       await loadClients()
+      toast.success('Müşteri silindi')
+      emitDashboardDataRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete client')
     }

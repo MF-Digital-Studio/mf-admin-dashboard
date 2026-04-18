@@ -10,7 +10,6 @@ export type RouteId =
   | 'finance'
   | 'proposals'
   | 'notes'
-  | 'files'
   | 'settings'
 
 export type BadgeTone =

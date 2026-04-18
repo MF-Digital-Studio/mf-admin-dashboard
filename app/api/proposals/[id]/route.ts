@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaProposalToEditable, mapPrismaProposalToProposal, mapProposalStatusToPrisma } from '@/features/proposals/mappers'
 import { proposalPayloadSchema } from '@/features/proposals/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -63,6 +64,14 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     })
 
+    await createCrudNotification({
+      action: 'updated',
+      entityType: 'PROPOSAL',
+      entityId: updated.id,
+      entityLabel: 'Teklif',
+      detail: updated.title,
+    }).catch(() => undefined)
+
     return NextResponse.json(mapPrismaProposalToProposal(updated))
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -79,9 +88,17 @@ export async function DELETE(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    await prisma.proposal.delete({
+    const deleted = await prisma.proposal.delete({
       where: { id },
     })
+
+    await createCrudNotification({
+      action: 'deleted',
+      entityType: 'PROPOSAL',
+      entityId: deleted.id,
+      entityLabel: 'Teklif',
+      detail: deleted.title,
+    }).catch(() => undefined)
 
     return NextResponse.json({ ok: true })
   } catch (error) {

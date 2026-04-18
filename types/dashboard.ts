@@ -1,4 +1,4 @@
-export type ActivityType = 'payment' | 'task' | 'proposal' | 'client' | 'project' | 'file'
+export type ActivityType = 'payment' | 'task' | 'proposal' | 'client' | 'project' | 'note'
 
 export interface MonthlyRevenuePoint {
   month: string
@@ -18,4 +18,3 @@ export interface ActivityItem {
   time: string
   type: ActivityType
 }
-

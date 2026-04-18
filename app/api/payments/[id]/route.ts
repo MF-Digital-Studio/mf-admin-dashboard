@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPaymentCategoryToPrisma, mapPaymentStatusToPrisma, mapPrismaPaymentToEditable, mapPrismaPaymentToPayment } from '@/features/finance/mappers'
 import { paymentPayloadSchema } from '@/features/finance/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -87,6 +88,14 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     })
 
+    await createCrudNotification({
+      action: 'updated',
+      entityType: 'PAYMENT',
+      entityId: updated.id,
+      entityLabel: 'Ödeme',
+      detail: `${updated.client.companyName} - ${updated.amount.toString()}`,
+    }).catch(() => undefined)
+
     return NextResponse.json(mapPrismaPaymentToPayment(updated))
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -103,9 +112,24 @@ export async function DELETE(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    await prisma.payment.delete({
+    const deleted = await prisma.payment.delete({
       where: { id },
+      include: {
+        client: {
+          select: {
+            companyName: true,
+          },
+        },
+      },
     })
+
+    await createCrudNotification({
+      action: 'deleted',
+      entityType: 'PAYMENT',
+      entityId: deleted.id,
+      entityLabel: 'Ödeme',
+      detail: `${deleted.client.companyName} - ${deleted.amount.toString()}`,
+    }).catch(() => undefined)
 
     return NextResponse.json({ ok: true })
   } catch (error) {

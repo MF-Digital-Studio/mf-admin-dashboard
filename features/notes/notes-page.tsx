@@ -7,8 +7,10 @@ import { PageHeader } from '@/components/shared/page-header'
 import { SearchField } from '@/components/shared/search-field'
 import { Button } from '@/components/ui/button'
 import { CreateEntityDialog, type NoteFormValues } from '@/components/shared/create-entity-dialog'
+import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 import { cn } from '@/lib/utils'
 import type { Note } from '@/types'
+import { toast } from 'sonner'
 
 const categories = ['All', 'Client Notes', 'Meeting Notes', 'Internal Ideas', 'Revision Requests']
 
@@ -138,6 +140,8 @@ export function NotesPage() {
         body: JSON.stringify(payload),
       })
       await loadNotes()
+      toast.success('Not oluşturuldu')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create note'
       setError(message)
@@ -158,6 +162,8 @@ export function NotesPage() {
         body: JSON.stringify(payload),
       })
       await Promise.all([loadNotes(), loadNoteDetails(activeNoteId)])
+      toast.success('Not güncellendi')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update note'
       setError(message)
@@ -179,6 +185,8 @@ export function NotesPage() {
         setNoteDetails(null)
       }
       await loadNotes()
+      toast.success('Not silindi')
+      emitDashboardDataRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete note')
     }

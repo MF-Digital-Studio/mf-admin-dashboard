@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPaymentCategoryToPrisma, mapPaymentStatusToPrisma, mapPrismaPaymentToPayment } from '@/features/finance/mappers'
 import { paymentPayloadSchema } from '@/features/finance/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 export async function GET() {
   const payments = await prisma.payment.findMany({
@@ -74,6 +75,14 @@ export async function POST(request: Request) {
         },
       },
     })
+
+    await createCrudNotification({
+      action: 'created',
+      entityType: 'PAYMENT',
+      entityId: created.id,
+      entityLabel: 'Ödeme',
+      detail: `${created.client.companyName} - ${created.amount.toString()}`,
+    }).catch(() => undefined)
 
     return NextResponse.json(mapPrismaPaymentToPayment(created), { status: 201 })
   } catch (error) {

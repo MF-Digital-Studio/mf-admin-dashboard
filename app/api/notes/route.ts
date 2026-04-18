@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapNoteCategoryToPrisma, mapNoteRelatedTypeToPrisma, mapPrismaNoteToNote } from '@/features/notes/mappers'
 import { notePayloadSchema } from '@/features/notes/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 function normalizeOptionalId(value: unknown): string | null {
   if (typeof value !== 'string') {
@@ -122,6 +123,14 @@ export async function POST(request: Request) {
         },
       },
     })
+
+    await createCrudNotification({
+      action: 'created',
+      entityType: 'NOTE',
+      entityId: created.id,
+      entityLabel: 'Not',
+      detail: created.title,
+    }).catch(() => undefined)
 
     return NextResponse.json(mapPrismaNoteToNote(created), { status: 201 })
   } catch (error) {

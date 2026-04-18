@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaProjectToProject, mapProjectPriorityToPrisma, mapProjectServiceToPrisma, mapProjectStatusToPrisma } from '@/features/projects/mappers'
 import { projectPayloadSchema } from '@/features/projects/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 export async function GET() {
   const projects = await prisma.project.findMany({
@@ -53,6 +54,14 @@ export async function POST(request: Request) {
         },
       },
     })
+
+    await createCrudNotification({
+      action: 'created',
+      entityType: 'PROJECT',
+      entityId: created.id,
+      entityLabel: 'Proje',
+      detail: created.name,
+    }).catch(() => undefined)
 
     return NextResponse.json(mapPrismaProjectToProject(created), { status: 201 })
   } catch (error) {

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaClientToClientSummary, mapServiceToPrisma, mapStatusToPrisma } from '@/features/clients/mappers'
 import { clientPayloadSchema } from '@/features/clients/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 export async function GET() {
   const clients = await prisma.client.findMany({
@@ -62,6 +63,14 @@ export async function POST(request: Request) {
         },
       },
     })
+
+    await createCrudNotification({
+      action: 'created',
+      entityType: 'CLIENT',
+      entityId: created.id,
+      entityLabel: 'Müşteri',
+      detail: created.companyName,
+    }).catch(() => undefined)
 
     return NextResponse.json(mapPrismaClientToClientSummary(created), { status: 201 })
   } catch (error) {

@@ -1,23 +1,7 @@
 import { NextResponse } from 'next/server'
+import { ensureSystemNotifications, listRecentActivities } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
-import type { ActivityItem, MonthlyRevenuePoint } from '@/types'
-
-function formatRelativeTime(date: Date): string {
-  const diffMs = Date.now() - date.getTime()
-  const minutes = Math.floor(diffMs / (1000 * 60))
-  const hours = Math.floor(diffMs / (1000 * 60 * 60))
-  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-  if (minutes < 60) {
-    return `${Math.max(1, minutes)} dk önce`
-  }
-
-  if (hours < 24) {
-    return `${hours} saat önce`
-  }
-
-  return `${days} gün önce`
-}
+import type { MonthlyRevenuePoint } from '@/types'
 
 function monthKey(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`
@@ -40,9 +24,6 @@ export async function GET() {
     tasksDueSoon,
     upcomingDeadlines,
     recentClientsRaw,
-    recentTasks,
-    recentProjects,
-    recentClientsForActivity,
     paidPayments,
     pendingPayments,
     pendingProposals,
@@ -98,20 +79,6 @@ export async function GET() {
         },
       },
       take: 4,
-    }),
-    prisma.task.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: { project: { select: { name: true } } },
-      take: 5,
-    }),
-    prisma.project.findMany({
-      orderBy: { updatedAt: 'desc' },
-      include: { client: { select: { companyName: true } } },
-      take: 5,
-    }),
-    prisma.client.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 5,
     }),
     prisma.payment.findMany({
       where: { status: 'PAID' },
@@ -186,6 +153,9 @@ export async function GET() {
     { name: 'Tamamlandı', value: projectsForStatus.filter((p) => p.status === 'COMPLETED').length, fill: '#22c55e' },
   ]
 
+  await ensureSystemNotifications()
+  const activities = await listRecentActivities(6)
+
   const recentClients = recentClientsRaw.map((client) => ({
     id: client.id,
     company: client.companyName,
@@ -203,35 +173,6 @@ export async function GET() {
     totalPaid: client.payments.reduce((sum, p) => sum + Number(p.amount.toString()), 0),
     location: '-',
   }))
-
-  const rawActivities: Array<ActivityItem & { at: Date }> = [
-    ...recentTasks.map((task) => ({
-      id: `task-${task.id}`,
-      action: task.status === 'DONE' ? 'Görev tamamlandı' : 'Görev güncellendi',
-      detail: `${task.title} - ${task.project.name}`,
-      time: formatRelativeTime(task.createdAt),
-      type: 'task' as const,
-      at: task.createdAt,
-    })),
-    ...recentProjects.map((project) => ({
-      id: `project-${project.id}`,
-      action: 'Proje güncellendi',
-      detail: `${project.name} - ${project.client.companyName}`,
-      time: formatRelativeTime(project.updatedAt),
-      type: 'project' as const,
-      at: project.updatedAt,
-    })),
-    ...recentClientsForActivity.map((client) => ({
-      id: `client-${client.id}`,
-      action: 'Yeni müşteri eklendi',
-      detail: client.companyName,
-      time: formatRelativeTime(client.createdAt),
-      type: 'client' as const,
-      at: client.createdAt,
-    })),
-  ]
-
-  const activities = rawActivities.sort((a, b) => b.at.getTime() - a.at.getTime()).slice(0, 6).map(({ at, ...item }) => item)
 
   return NextResponse.json({
     activeClients,

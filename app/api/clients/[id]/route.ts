@@ -10,6 +10,7 @@ import {
   mapStatusToPrisma,
 } from '@/features/clients/mappers'
 import { clientPayloadSchema } from '@/features/clients/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -95,6 +96,14 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     })
 
+    await createCrudNotification({
+      action: 'updated',
+      entityType: 'CLIENT',
+      entityId: updated.id,
+      entityLabel: 'Müşteri',
+      detail: updated.companyName,
+    }).catch(() => undefined)
+
     return NextResponse.json(mapPrismaClientToClientSummary(updated))
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -115,9 +124,17 @@ export async function DELETE(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    await prisma.client.delete({
+    const deleted = await prisma.client.delete({
       where: { id },
     })
+
+    await createCrudNotification({
+      action: 'deleted',
+      entityType: 'CLIENT',
+      entityId: deleted.id,
+      entityLabel: 'Müşteri',
+      detail: deleted.companyName,
+    }).catch(() => undefined)
 
     return NextResponse.json({ ok: true })
   } catch (error) {

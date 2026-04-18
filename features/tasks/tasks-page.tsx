@@ -10,8 +10,10 @@ import { SearchField } from '@/components/shared/search-field'
 import { TableWrapper } from '@/components/shared/table-wrapper'
 import { Button } from '@/components/ui/button'
 import { CreateEntityDialog, type TaskFormValues } from '@/components/shared/create-entity-dialog'
+import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 import { cn } from '@/lib/utils'
 import type { Task } from '@/types'
+import { toast } from 'sonner'
 
 const statusFilters = ['All', 'Todo', 'In Progress', 'Review', 'Done', 'Blocked']
 const priorityFilters = ['All', 'High', 'Medium', 'Low']
@@ -151,6 +153,8 @@ export function TasksPage() {
         body: JSON.stringify(payload),
       })
       await loadTasks()
+      toast.success('Görev oluşturuldu')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create task'
       setError(message)
@@ -173,6 +177,8 @@ export function TasksPage() {
         body: JSON.stringify(payload),
       })
       await Promise.all([loadTasks(), loadTaskDetails(activeTaskId)])
+      toast.success('Görev güncellendi')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update task'
       setError(message)
@@ -196,6 +202,8 @@ export function TasksPage() {
         setTaskDetails(null)
       }
       await loadTasks()
+      toast.success('Görev silindi')
+      emitDashboardDataRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete task')
     }

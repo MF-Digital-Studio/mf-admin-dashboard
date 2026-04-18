@@ -7,7 +7,6 @@ export const activities = [
   { id: 'a3', action: 'Teklif kabul edildi', detail: 'Bodrum Butik - Sosyal Medya Eklentisi', time: '1 gün önce', type: 'proposal' },
   { id: 'a4', action: 'Yeni müşteri eklendi', detail: 'Mersin Oto Galeri - Potansiyel', time: '2 gün önce', type: 'client' },
   { id: 'a5', action: 'Proje güncellendi', detail: 'İstanbul Mode - E-ticaret %70', time: '2 gün önce', type: 'project' },
-  { id: 'a6', action: 'Dosya yüklendi', detail: 'ankara-gurme-homepage-mockup.fig', time: '3 gün önce', type: 'file' },
   { id: 'a7', action: 'Fatura gönderildi', detail: 'Trabzon Balık Evi - ₺3.500', time: '4 gün önce', type: 'payment' },
 ] satisfies ActivityItem[]
 

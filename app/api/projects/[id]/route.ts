@@ -9,6 +9,7 @@ import {
   mapProjectStatusToPrisma,
 } from '@/features/projects/mappers'
 import { projectPayloadSchema } from '@/features/projects/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 interface Params {
   params: Promise<{ id: string }>
@@ -72,6 +73,14 @@ export async function PATCH(request: Request, { params }: Params) {
       },
     })
 
+    await createCrudNotification({
+      action: 'updated',
+      entityType: 'PROJECT',
+      entityId: updated.id,
+      entityLabel: 'Proje',
+      detail: updated.name,
+    }).catch(() => undefined)
+
     return NextResponse.json(mapPrismaProjectToProject(updated))
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
@@ -88,9 +97,17 @@ export async function DELETE(_: Request, { params }: Params) {
   const { id } = await params
 
   try {
-    await prisma.project.delete({
+    const deleted = await prisma.project.delete({
       where: { id },
     })
+
+    await createCrudNotification({
+      action: 'deleted',
+      entityType: 'PROJECT',
+      entityId: deleted.id,
+      entityLabel: 'Proje',
+      detail: deleted.name,
+    }).catch(() => undefined)
 
     return NextResponse.json({ ok: true })
   } catch (error) {

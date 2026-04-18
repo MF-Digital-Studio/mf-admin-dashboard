@@ -9,8 +9,10 @@ import { StatCard } from '@/components/shared/stat-card'
 import { TableWrapper } from '@/components/shared/table-wrapper'
 import { Button } from '@/components/ui/button'
 import { CreateEntityDialog, type PaymentFormValues } from '@/components/shared/create-entity-dialog'
+import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 import { formatCompactCurrency, formatCurrency } from '@/lib/format'
 import type { Payment, ServiceName } from '@/types'
+import { toast } from 'sonner'
 
 const COLORS = ['#3b82f6', '#22c55e', '#f97316', '#a855f7', '#06b6d4']
 
@@ -241,6 +243,8 @@ export function FinancePage() {
         body: JSON.stringify(payload),
       })
       await loadPayments()
+      toast.success('Ödeme kaydı oluşturuldu')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create payment'
       setError(message)
@@ -263,6 +267,8 @@ export function FinancePage() {
         body: JSON.stringify(payload),
       })
       await Promise.all([loadPayments(), loadPaymentDetails(activePaymentId)])
+      toast.success('Ödeme kaydı güncellendi')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update payment'
       setError(message)
@@ -286,6 +292,8 @@ export function FinancePage() {
         setPaymentDetails(null)
       }
       await loadPayments()
+      toast.success('Ödeme kaydı silindi')
+      emitDashboardDataRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete payment')
     }

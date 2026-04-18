@@ -6,6 +6,4 @@ export * from './payment'
 export * from './proposal'
 export * from './service'
 export * from './note'
-export * from './file'
 export * from './dashboard'
-

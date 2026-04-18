@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import type { ClientStatus, FileCategory, NoteCategory, NoteRelatedType, PaymentStatus, PriorityLevel, ProjectStatus, ProposalStatus, ServiceName, TaskStatus } from '@/types'
+import type { ClientStatus, NoteCategory, NoteRelatedType, PaymentStatus, PriorityLevel, ProjectStatus, ProposalStatus, ServiceName, TaskStatus } from '@/types'
 
-export type CreateEntityType = 'client' | 'project' | 'task' | 'payment' | 'proposal' | 'note' | 'file' | 'invite'
+export type CreateEntityType = 'client' | 'project' | 'task' | 'payment' | 'proposal' | 'note' | 'invite'
 
 interface CreateEntityDialogProps {
   entity: CreateEntityType
@@ -26,7 +26,6 @@ interface CreateEntityDialogProps {
   onPaymentSubmit?: (values: PaymentFormValues) => Promise<void> | void
   noteInitialValues?: NoteFormValues
   onNoteSubmit?: (values: NoteFormValues) => Promise<void> | void
-  onFileSubmit?: (values: FileFormValues) => Promise<void> | void
 }
 
 export interface ClientFormValues {
@@ -93,14 +92,6 @@ export interface NoteFormValues {
   tags: string[]
 }
 
-export interface FileFormValues {
-  file: File
-  category: FileCategory
-  clientId: string
-  projectId: string
-  notes: string
-}
-
 interface ProjectClientOption {
   id: string
   company: string
@@ -137,17 +128,6 @@ interface NoteProjectOption {
   name: string
 }
 
-interface FileClientOption {
-  id: string
-  company: string
-}
-
-interface FileProjectOption {
-  id: string
-  name: string
-  clientId: string
-}
-
 const fieldLabelClass = 'text-sm font-medium text-muted-foreground'
 const selectClass = 'h-9 w-full rounded-md border border-input bg-secondary px-3 text-sm text-foreground outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/40'
 
@@ -181,11 +161,6 @@ const formMeta: Record<CreateEntityType, { title: string; description: string; s
     title: 'Yeni Not',
     description: 'Ajans operasyonu için paylaşılabilir bir not ekleyin.',
     saveLabel: 'Notu Kaydet',
-  },
-  file: {
-    title: 'Dosya Yükle',
-    description: 'Dosya kaydını ekleyerek arşivi güncel tutun.',
-    saveLabel: 'Dosyayı Kaydet',
   },
   invite: {
     title: 'Ekip Üyesi Davet Et',
@@ -595,66 +570,6 @@ function NoteFields({
   )
 }
 
-function FileFields({
-  clientOptions,
-  projectOptions,
-}: {
-  clientOptions: FileClientOption[]
-  projectOptions: FileProjectOption[]
-}) {
-  const firstClientId = clientOptions[0]?.id ?? ''
-
-  return (
-    <>
-      <div className="grid gap-2">
-        <label className={fieldLabelClass}>Dosya</label>
-        <Input name="file" type="file" required />
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="grid gap-2">
-          <label className={fieldLabelClass}>Kategori</label>
-          <select name="category" className={selectClass} defaultValue="Assets" required>
-            <option>Logos</option>
-            <option>Contracts</option>
-            <option>Assets</option>
-            <option>Deliverables</option>
-            <option>Screenshots</option>
-            <option>Documents</option>
-          </select>
-        </div>
-        <div className="grid gap-2">
-          <label className={fieldLabelClass}>Dosya Türü</label>
-          <Input defaultValue="Yüklenen dosyadan otomatik alınır" disabled />
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="grid gap-2">
-          <label className={fieldLabelClass}>Müşteri</label>
-          <select name="clientId" className={selectClass} defaultValue={firstClientId}>
-            <option value="">Seçilmedi</option>
-            {clientOptions.map((client) => (
-              <option key={client.id} value={client.id}>{client.company}</option>
-            ))}
-          </select>
-        </div>
-        <div className="grid gap-2">
-          <label className={fieldLabelClass}>Proje</label>
-          <select name="projectId" className={selectClass} defaultValue="">
-            <option value="">Seçilmedi</option>
-            {projectOptions.map((project) => (
-              <option key={project.id} value={project.id}>{project.name}</option>
-            ))}
-          </select>
-        </div>
-      </div>
-      <div className="grid gap-2">
-        <label className={fieldLabelClass}>Açıklama</label>
-        <Textarea name="notes" placeholder="Dosya hakkında kısa not..." className="min-h-20" />
-      </div>
-    </>
-  )
-}
-
 function InviteFields() {
   return (
     <>
@@ -709,7 +624,6 @@ export function CreateEntityDialog({
   onPaymentSubmit,
   noteInitialValues,
   onNoteSubmit,
-  onFileSubmit,
 }: CreateEntityDialogProps) {
   const [open, setOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -725,9 +639,6 @@ export function CreateEntityDialog({
   const [noteClientOptions, setNoteClientOptions] = useState<NoteClientOption[]>([])
   const [noteProjectOptions, setNoteProjectOptions] = useState<NoteProjectOption[]>([])
   const [noteOptionsError, setNoteOptionsError] = useState<string | null>(null)
-  const [fileClientOptions, setFileClientOptions] = useState<FileClientOption[]>([])
-  const [fileProjectOptions, setFileProjectOptions] = useState<FileProjectOption[]>([])
-  const [fileOptionsError, setFileOptionsError] = useState<string | null>(null)
 
   const meta = entity === 'client' && mode === 'edit'
     ? {
@@ -890,41 +801,6 @@ export function CreateEntityDialog({
       } catch (error) {
         if (mounted) {
           setNoteOptionsError(error instanceof Error ? error.message : 'Not formu seçenekleri yüklenemedi')
-        }
-      }
-    }
-
-    void run()
-
-    return () => {
-      mounted = false
-    }
-  }, [entity, open])
-
-  useEffect(() => {
-    if (entity !== 'file' || !open) {
-      return
-    }
-
-    let mounted = true
-    const run = async () => {
-      setFileOptionsError(null)
-      try {
-        const [clientsResponse, projectsResponse] = await Promise.all([fetch('/api/clients'), fetch('/api/projects')])
-        if (!clientsResponse.ok || !projectsResponse.ok) {
-          throw new Error('Dosya formu seçenekleri yüklenemedi')
-        }
-
-        const clientsData = (await clientsResponse.json()) as Array<{ id: string; company: string }>
-        const projectsData = (await projectsResponse.json()) as Array<{ id: string; name: string; clientId: string }>
-
-        if (mounted) {
-          setFileClientOptions(clientsData.map((client) => ({ id: client.id, company: client.company })))
-          setFileProjectOptions(projectsData.map((project) => ({ id: project.id, name: project.name, clientId: project.clientId })))
-        }
-      } catch (error) {
-        if (mounted) {
-          setFileOptionsError(error instanceof Error ? error.message : 'Dosya formu seçenekleri yüklenemedi')
         }
       }
     }
@@ -1112,32 +988,6 @@ export function CreateEntityDialog({
       return
     }
 
-    if (entity === 'file' && onFileSubmit) {
-      const formData = new FormData(form)
-      const file = formData.get('file')
-
-      if (!(file instanceof File) || file.size === 0) {
-        return
-      }
-
-      const payload: FileFormValues = {
-        file,
-        category: String(formData.get('category') ?? 'Assets') as FileCategory,
-        clientId: String(formData.get('clientId') ?? ''),
-        projectId: String(formData.get('projectId') ?? ''),
-        notes: String(formData.get('notes') ?? ''),
-      }
-
-      setIsSubmitting(true)
-      try {
-        await onFileSubmit(payload)
-        setOpen(false)
-      } finally {
-        setIsSubmitting(false)
-      }
-      return
-    }
-
     setOpen(false)
   }
 
@@ -1176,18 +1026,12 @@ export function CreateEntityDialog({
               {noteOptionsError}
             </div>
           )}
-          {entity === 'file' && fileOptionsError && (
-            <div className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {fileOptionsError}
-            </div>
-          )}
           {entity === 'client' && <ClientFields initialValues={clientInitialValues} />}
           {entity === 'project' && <ProjectFields clientOptions={projectClientOptions} initialValues={projectInitialValues} />}
           {entity === 'task' && <TaskFields projectOptions={taskProjectOptions} initialValues={taskInitialValues} />}
           {entity === 'payment' && <PaymentFields clientOptions={paymentClientOptions} projectOptions={paymentProjectOptions} initialValues={paymentInitialValues} />}
           {entity === 'proposal' && <ProposalFields clientOptions={proposalClientOptions} initialValues={proposalInitialValues} />}
           {entity === 'note' && <NoteFields clientOptions={noteClientOptions} projectOptions={noteProjectOptions} initialValues={noteInitialValues} />}
-          {entity === 'file' && <FileFields clientOptions={fileClientOptions} projectOptions={fileProjectOptions} />}
           {entity === 'invite' && <InviteFields />}
 
           <DialogFooter>

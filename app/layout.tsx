@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { DashboardShell } from '@/components/layout/dashboard-shell'
 import { ThemeProvider } from '@/components/theme-provider'
+import { Toaster } from '@/components/ui/sonner'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -30,6 +31,7 @@ export default function RootLayout({
       <body className={`${inter.className} antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem storageKey="mf-admin-theme">
           <DashboardShell>{children}</DashboardShell>
+          <Toaster position="top-right" richColors />
         </ThemeProvider>
       </body>
     </html>

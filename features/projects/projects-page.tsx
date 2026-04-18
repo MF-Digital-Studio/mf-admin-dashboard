@@ -9,9 +9,11 @@ import { PageHeader } from '@/components/shared/page-header'
 import { SearchField } from '@/components/shared/search-field'
 import { Button } from '@/components/ui/button'
 import { CreateEntityDialog, type ProjectFormValues } from '@/components/shared/create-entity-dialog'
+import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 import { cn } from '@/lib/utils'
 import { formatCurrency } from '@/lib/format'
 import type { Project, ServiceName } from '@/types'
+import { toast } from 'sonner'
 
 const statuses = ['All', 'Planning', 'Design', 'Development', 'Revision', 'Waiting for Client', 'Completed', 'On Hold']
 const priorities = ['All', 'High', 'Medium', 'Low']
@@ -160,6 +162,8 @@ export function ProjectsPage() {
         body: JSON.stringify(payload),
       })
       await loadProjects()
+      toast.success('Proje oluşturuldu')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to create project'
       setError(message)
@@ -182,6 +186,8 @@ export function ProjectsPage() {
         body: JSON.stringify(payload),
       })
       await Promise.all([loadProjects(), loadProjectDetails(selected)])
+      toast.success('Proje güncellendi')
+      emitDashboardDataRefresh()
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to update project'
       setError(message)
@@ -207,6 +213,8 @@ export function ProjectsPage() {
       setSelected(null)
       setSelectedDetails(null)
       await loadProjects()
+      toast.success('Proje silindi')
+      emitDashboardDataRefresh()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete project')
     }

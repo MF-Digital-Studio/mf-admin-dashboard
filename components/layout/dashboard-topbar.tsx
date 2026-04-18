@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { useCallback, useEffect, useState } from 'react'
 import { Bell, ChevronDown, Menu, Plus, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,6 +15,16 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { CreateEntityDialog, type CreateEntityType } from '@/components/shared/create-entity-dialog'
+import { emitDashboardDataRefresh, onDashboardDataRefresh } from '@/lib/dashboard-events'
+
+type TopbarNotification = {
+  id: string
+  title: string
+  message: string
+  eventType: 'CREATED' | 'UPDATED' | 'DELETED' | 'DUE_SOON' | 'OVERDUE'
+  read: boolean
+  time: string
+}
 
 const pageTitles: Record<string, string> = {
   '/': 'Gösterge Paneli',
@@ -24,7 +35,6 @@ const pageTitles: Record<string, string> = {
   '/finance': 'Finans',
   '/proposals': 'Teklifler',
   '/notes': 'Notlar',
-  '/files': 'Dosyalar',
   '/settings': 'Ayarlar',
 }
 
@@ -42,6 +52,78 @@ interface DashboardTopbarProps {
 
 export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
   const pathname = usePathname()
+  const [notifications, setNotifications] = useState<TopbarNotification[]>([])
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(true)
+
+  const loadNotifications = useCallback(async (): Promise<TopbarNotification[]> => {
+    const response = await fetch('/api/notifications')
+    if (!response.ok) {
+      throw new Error('Bildirimler yüklenemedi')
+    }
+    return (await response.json()) as TopbarNotification[]
+  }, [])
+
+  useEffect(() => {
+    let mounted = true
+
+    const run = async () => {
+      try {
+        const data = await loadNotifications()
+        if (mounted) {
+          setNotifications(data)
+          setIsLoadingNotifications(false)
+        }
+      } catch {
+        if (mounted) {
+          setNotifications([])
+          setIsLoadingNotifications(false)
+        }
+      }
+    }
+
+    const sync = () => {
+      void run()
+    }
+
+    void run()
+    const cleanupRefreshListener = onDashboardDataRefresh(sync)
+    const intervalId = window.setInterval(() => {
+      void sync()
+    }, 60000)
+
+    return () => {
+      mounted = false
+      cleanupRefreshListener()
+      window.clearInterval(intervalId)
+    }
+  }, [loadNotifications])
+
+  const unreadCount = notifications.filter((notification) => !notification.read).length
+
+  const eventColorClass: Record<TopbarNotification['eventType'], string> = {
+    CREATED: 'bg-emerald-500',
+    UPDATED: 'bg-primary',
+    DELETED: 'bg-red-500',
+    DUE_SOON: 'bg-yellow-500',
+    OVERDUE: 'bg-orange-500',
+  }
+
+  const handleNotificationsOpenChange = (open: boolean) => {
+    if (!open || unreadCount === 0) {
+      return
+    }
+
+    void fetch('/api/notifications', {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ markAllRead: true }),
+    })
+
+    setNotifications((current) => current.map((notification) => ({ ...notification, read: true })))
+    emitDashboardDataRefresh()
+  }
 
   return (
     <header className="flex items-center justify-between h-14 px-3 sm:px-4 border-b border-border bg-card shrink-0 gap-2 sm:gap-4">
@@ -89,29 +171,32 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
           </DropdownMenuContent>
         </DropdownMenu>
 
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={handleNotificationsOpenChange}>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 relative hover:bg-accent">
               <Bell className="w-4 h-4 text-muted-foreground" />
-              <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />
+              {unreadCount > 0 && <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-72 bg-popover border-border p-2">
             <DropdownMenuLabel className="text-sm font-semibold text-foreground mb-1">Bildirimler</DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-border mb-2" />
-            {[
-              { msg: 'Bodrum Butik ödemesi ₺19.000 alındı', time: '2 sa önce', dot: 'bg-emerald-500' },
-              { msg: 'Teklif kabul edildi - Sosyal Medya Eklentisi', time: '1 g önce', dot: 'bg-primary' },
-              { msg: 'Görev gecikti: Google Analytics Kurulumu', time: '2 g önce', dot: 'bg-red-500' },
-            ].map((notification, index) => (
-              <div key={index} className="flex items-start gap-2.5 p-2 rounded-md hover:bg-accent cursor-pointer">
-                <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${notification.dot}`} />
-                <div>
-                  <p className="text-sm text-foreground leading-snug">{notification.msg}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{notification.time}</p>
+            {isLoadingNotifications ? (
+              <p className="px-2 py-3 text-sm text-muted-foreground">Yükleniyor...</p>
+            ) : notifications.length > 0 ? (
+              notifications.slice(0, 6).map((notification) => (
+                <div key={notification.id} className="flex items-start gap-2.5 p-2 rounded-md hover:bg-accent cursor-pointer">
+                  <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${eventColorClass[notification.eventType]}`} />
+                  <div>
+                    <p className="text-sm text-foreground leading-snug">{notification.title}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{notification.message}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{notification.time}</p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))
+            ) : (
+              <p className="px-2 py-3 text-sm text-muted-foreground">Henüz bildirim yok</p>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
 

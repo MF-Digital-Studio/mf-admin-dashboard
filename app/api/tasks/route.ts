@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaTaskToTask, mapTaskPriorityToPrisma, mapTaskStatusToPrisma } from '@/features/tasks/mappers'
 import { taskPayloadSchema } from '@/features/tasks/schemas'
+import { createCrudNotification } from '@/lib/notifications'
 
 export async function GET() {
   const tasks = await prisma.task.findMany({
@@ -63,6 +64,14 @@ export async function POST(request: Request) {
       },
     },
   })
+
+  await createCrudNotification({
+    action: 'created',
+    entityType: 'TASK',
+    entityId: created.id,
+    entityLabel: 'Görev',
+    detail: created.title,
+  }).catch(() => undefined)
 
   return NextResponse.json(mapPrismaTaskToTask(created), { status: 201 })
 }
