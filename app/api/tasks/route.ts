@@ -56,6 +56,7 @@ export async function POST(request: Request) {
       assignee: parsed.data.assignedTo,
       priority: mapTaskPriorityToPrisma(parsed.data.priority),
       status: mapTaskStatusToPrisma(parsed.data.status),
+      price: parsed.data.price ?? null,
       dueDate: new Date(parsed.data.dueDate),
       notes: parsed.data.notes || null,
     },

@@ -71,6 +71,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (parsed.data.assignedTo !== undefined) data.assignee = parsed.data.assignedTo
   if (parsed.data.priority !== undefined) data.priority = mapTaskPriorityToPrisma(parsed.data.priority)
   if (parsed.data.status !== undefined) data.status = mapTaskStatusToPrisma(parsed.data.status)
+  if (parsed.data.price !== undefined) data.price = parsed.data.price
   if (parsed.data.dueDate !== undefined) data.dueDate = new Date(parsed.data.dueDate)
   if (parsed.data.notes !== undefined) data.notes = parsed.data.notes || null
 

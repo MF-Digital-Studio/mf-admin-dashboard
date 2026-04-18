@@ -4,8 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum ClientStatus {
@@ -155,6 +156,7 @@ model Task {
   assignee  String
   priority  Priority   @default(MEDIUM)
   status    TaskStatus @default(TODO)
+  price     Decimal?   @db.Decimal(12, 2)
   dueDate   DateTime?
   notes     String?
   createdAt DateTime   @default(now())

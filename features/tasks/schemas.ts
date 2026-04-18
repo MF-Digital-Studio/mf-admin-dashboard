@@ -11,6 +11,7 @@ export const taskPayloadSchema = z.object({
   assignedTo: z.string().trim().min(1, 'Assignee is required').max(120),
   priority: z.enum(taskPriorities),
   status: z.enum(taskStatuses),
+  price: z.union([z.coerce.number().min(0, 'Price must be >= 0'), z.null()]).optional(),
   dueDate: z.string().trim().regex(datePattern, 'Due date is required'),
   notes: z.string().trim().max(3000).optional().default(''),
 })

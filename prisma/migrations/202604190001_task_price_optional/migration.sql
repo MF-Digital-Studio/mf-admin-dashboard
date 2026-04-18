@@ -1,0 +1,2 @@
+ALTER TABLE "public"."Task" ADD COLUMN IF NOT EXISTS "price" DECIMAL(12,2);
+

@@ -40,6 +40,11 @@ export async function GET(_: Request, { params }: Params) {
           createdAt: 'desc',
         },
       },
+      payments: {
+        select: {
+          status: true,
+        },
+      },
     },
   })
 
@@ -51,6 +56,7 @@ export async function GET(_: Request, { params }: Params) {
     project: mapPrismaProjectToProject(project),
     editable: mapPrismaProjectToEditable(project),
     tasks: project.tasks.map(mapPrismaTaskToTask),
+    paymentCompleted: project.payments.some((payment) => payment.status === 'PAID'),
   })
 }
 

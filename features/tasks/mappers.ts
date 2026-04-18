@@ -54,6 +54,7 @@ export function mapPrismaTaskToTask(task: PrismaTaskModel & { project: { id: str
     assignedTo: task.assignee,
     priority: priorityToUi[task.priority],
     status: statusToUi[task.status],
+    price: task.price ? Number(task.price.toString()) : null,
     dueDate: toDateString(task.dueDate),
     notes: task.notes ?? '',
   }
@@ -66,6 +67,7 @@ export function mapPrismaTaskToEditable(task: PrismaTaskModel) {
     assignedTo: task.assignee,
     priority: priorityToUi[task.priority],
     status: statusToUi[task.status],
+    price: task.price ? Number(task.price.toString()) : null,
     dueDate: toDateString(task.dueDate),
     notes: task.notes ?? '',
   }

@@ -62,6 +62,7 @@ export interface TaskFormValues {
   assignedTo: string
   priority: PriorityLevel
   status: TaskStatus
+  price?: number | null
   dueDate: string
   notes: string
 }
@@ -370,7 +371,7 @@ function TaskFields({
           <Input name="assignedTo" defaultValue={initialValues?.assignedTo ?? 'Admin'} required />
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Öncelik</label>
           <select name="priority" className={selectClass} defaultValue={initialValues?.priority ?? 'Medium'} required>
@@ -392,6 +393,10 @@ function TaskFields({
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Teslim Tarihi</label>
           <Input name="dueDate" type="date" required defaultValue={initialValues?.dueDate ?? ''} />
+        </div>
+        <div className="grid gap-2">
+          <label className={fieldLabelClass}>Fiyat (Opsiyonel)</label>
+          <Input name="price" type="number" min="0" step="0.01" placeholder="₺" defaultValue={initialValues?.price ?? ''} />
         </div>
       </div>
       <div className="grid gap-2">
@@ -1036,12 +1041,14 @@ export function CreateEntityDialog({
 
     if (entity === 'task' && onTaskSubmit) {
       const formData = new FormData(form)
+      const rawPrice = String(formData.get('price') ?? '').trim()
       const payload: TaskFormValues = {
         title: String(formData.get('title') ?? ''),
         projectId: String(formData.get('projectId') ?? ''),
         assignedTo: String(formData.get('assignedTo') ?? ''),
         priority: String(formData.get('priority') ?? 'Medium') as PriorityLevel,
         status: String(formData.get('status') ?? 'Todo') as TaskStatus,
+        price: rawPrice.length > 0 ? Number(rawPrice) : null,
         dueDate: String(formData.get('dueDate') ?? ''),
         notes: String(formData.get('notes') ?? ''),
       }

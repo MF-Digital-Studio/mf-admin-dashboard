@@ -38,6 +38,7 @@ type ProjectDetailsResponse = {
   project: Project
   editable: ProjectFormValues
   tasks: Task[]
+  paymentCompleted: boolean
 }
 
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
@@ -63,6 +64,7 @@ export function ProjectsPage() {
   const [isDetailLoading, setIsDetailLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [confirmProject, setConfirmProject] = useState<null | { id: string; name: string }>(null)
+  const [isMarkingPayment, setIsMarkingPayment] = useState(false)
 
   const loadProjects = useCallback(async () => {
     const data = await fetchJson<Project[]>('/api/projects')
@@ -159,10 +161,13 @@ export function ProjectsPage() {
       assignedTo: activeTask.assignedTo,
       priority: activeTask.priority,
       status: activeTask.status,
+      price: activeTask.price ?? null,
       dueDate: activeTask.dueDate === '-' ? '' : activeTask.dueDate,
       notes: activeTask.notes ?? '',
     }
     : undefined
+
+  const isProjectPaymentCompleted = selectedDetails?.paymentCompleted ?? false
 
   const handleCreateProject = async (payload: ProjectFormValues) => {
     setError(null)
@@ -279,6 +284,26 @@ export function ProjectsPage() {
     }
   }
 
+  const handleMarkProjectPaymentCompleted = async () => {
+    if (!selectedProject || isProjectPaymentCompleted) return
+
+    setError(null)
+    setIsMarkingPayment(true)
+    try {
+      const response = await fetchJson<{ alreadyCompleted: boolean }>(`/api/projects/${selectedProject.id}/complete-payment`, {
+        method: 'POST',
+      })
+      await Promise.all([loadProjects(), loadProjectDetails(selectedProject.id)])
+      toast.success(response.alreadyCompleted ? 'Proje ödemesi zaten tamamlandı olarak kayıtlı' : 'Proje ödemesi finansa işlendi')
+      emitDashboardDataRefresh()
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to mark project payment completed'
+      setError(message)
+    } finally {
+      setIsMarkingPayment(false)
+    }
+  }
+
   return (
     <div className="flex h-full overflow-hidden">
       <div className={cn('flex-1 overflow-y-auto p-4 sm:p-6 space-y-5', selected && 'hidden xl:block')}>
@@ -381,6 +406,14 @@ export function ProjectsPage() {
               </button>
             </div>
             <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="h-8 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+                onClick={() => void handleMarkProjectPaymentCompleted()}
+                disabled={isProjectPaymentCompleted || isMarkingPayment}
+              >
+                {isProjectPaymentCompleted ? 'Ödeme Kaydı Oluşturuldu' : 'Ödeme Tamamlandı'}
+              </Button>
               <CreateEntityDialog
                 entity="project"
                 mode="edit"
@@ -439,6 +472,7 @@ export function ProjectsPage() {
                     assignedTo: 'Admin',
                     priority: 'Medium',
                     status: 'Todo',
+                    price: null,
                     dueDate: '',
                     notes: '',
                   }}
@@ -468,6 +502,9 @@ export function ProjectsPage() {
                         <span>Teslim: {task.dueDate}</span>
                         <span>Atanan: {task.assignedTo}</span>
                       </div>
+                      {task.price !== null && task.price !== undefined && (
+                        <div className="text-xs font-semibold text-foreground">Fiyat: {formatCurrency(task.price)}</div>
+                      )}
                       <div className="flex gap-1.5">
                         <CreateEntityDialog
                           entity="task"
@@ -478,6 +515,7 @@ export function ProjectsPage() {
                             assignedTo: task.assignedTo,
                             priority: task.priority,
                             status: task.status,
+                            price: task.price ?? null,
                             dueDate: task.dueDate === '-' ? '' : task.dueDate,
                             notes: task.notes ?? '',
                           }}

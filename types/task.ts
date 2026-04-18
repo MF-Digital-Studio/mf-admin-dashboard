@@ -10,6 +10,7 @@ export interface Task {
   assignedTo: string
   priority: PriorityLevel
   status: TaskStatus
+  price?: number | null
   dueDate: string
   notes?: string
 }
