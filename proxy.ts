@@ -1,39 +1,29 @@
-import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
-import { isAllowedAdminUserId } from '@/lib/auth/admin-access'
+import type { NextRequest } from 'next/server'
+import { ADMIN_SESSION_COOKIE_NAME } from '@/lib/auth/session'
 
-const isPublicRoute = createRouteMatcher([
-  '/sign-in(.*)',
-  '/unauthorized(.*)',
-  '/_clerk(.*)',
-])
+const PUBLIC_PATH_PREFIXES = ['/login', '/api/auth/login', '/api/auth/logout']
 
-const isSignInRoute = createRouteMatcher(['/sign-in(.*)'])
+const isPublicPath = (pathname: string) => PUBLIC_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
 
-export default clerkMiddleware(async (auth, req) => {
-  const { userId } = await auth()
-  const hasAdminAccess = isAllowedAdminUserId(userId)
+export default function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl
+  const hasSessionCookie = Boolean(request.cookies.get(ADMIN_SESSION_COOKIE_NAME)?.value)
 
-  if (isSignInRoute(req) && userId && hasAdminAccess) {
-    return NextResponse.redirect(new URL('/dashboard', req.url))
-  }
-
-  if (isPublicRoute(req)) {
+  if (isPublicPath(pathname)) {
     return NextResponse.next()
   }
 
-  await auth.protect()
-
-  if (!hasAdminAccess) {
-    if (req.nextUrl.pathname.startsWith('/api')) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!hasSessionCookie) {
+    if (pathname.startsWith('/api')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    return NextResponse.redirect(new URL('/unauthorized', req.url))
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: [

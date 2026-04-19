@@ -14,7 +14,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const pathname = usePathname()
 
-  if (pathname.startsWith('/sign-in') || pathname.startsWith('/unauthorized')) {
+  if (pathname.startsWith('/login')) {
     return <>{children}</>
   }
 

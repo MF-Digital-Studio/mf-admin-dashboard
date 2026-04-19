@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
-import { useClerk, useUser } from '@clerk/nextjs'
 import { Bell, ChevronDown, Menu, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Trash } from 'lucide-react'
@@ -51,10 +50,15 @@ interface DashboardTopbarProps {
   onMobileMenuOpen: () => void
 }
 
+type CurrentAdminUser = {
+  id: string
+  name: string
+  email: string
+}
+
 export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
   const pathname = usePathname()
-  const { user, isLoaded } = useUser()
-  const { signOut } = useClerk()
+  const [currentAdmin, setCurrentAdmin] = useState<CurrentAdminUser | null>(null)
   const [notifications, setNotifications] = useState<TopbarNotification[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true)
 
@@ -102,13 +106,38 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
   }, [loadNotifications])
 
   const unreadCount = notifications.filter((notification) => !notification.read).length
-  const adminName = user?.fullName?.trim() || user?.firstName?.trim() || 'Admin'
-  const adminSubtitle = user?.primaryEmailAddress?.emailAddress ?? 'Yetkili Kullanici'
-  const adminInitials =
-    user?.firstName?.[0]?.toUpperCase() ||
-    user?.lastName?.[0]?.toUpperCase() ||
-    user?.primaryEmailAddress?.emailAddress?.[0]?.toUpperCase() ||
-    'A'
+  const adminName = currentAdmin?.name ?? 'Admin'
+  const adminSubtitle = currentAdmin?.email ?? 'Yetkili Kullanici'
+  const adminInitials = adminName.slice(0, 1).toUpperCase() || 'A'
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadCurrentAdmin = async () => {
+      try {
+        const response = await fetch('/api/auth/me', { cache: 'no-store' })
+        if (!response.ok) {
+          if (response.status === 401) {
+            window.location.href = '/login'
+          }
+          return
+        }
+
+        const data = (await response.json()) as { user?: CurrentAdminUser }
+        if (mounted && data.user) {
+          setCurrentAdmin(data.user)
+        }
+      } catch {
+        // silent fail, the middleware + API auth already protects sensitive routes
+      }
+    }
+
+    void loadCurrentAdmin()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const eventColorClass: Record<TopbarNotification['eventType'], string> = {
     CREATED: 'bg-emerald-500',
@@ -158,7 +187,8 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
   }
 
   const handleLogout = async () => {
-    await signOut({ redirectUrl: '/sign-in' })
+    await fetch('/api/auth/logout', { method: 'POST' })
+    window.location.href = '/login'
   }
 
 
@@ -261,7 +291,7 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 rounded-none px-2 py-1 hover:bg-accent transition-colors cursor-pointer">
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
-                <span className="text-xs font-bold text-primary">{isLoaded ? adminInitials : '...'}</span>
+                <span className="text-xs font-bold text-primary">{adminInitials}</span>
               </div>
               <div className="hidden md:block text-left">
                 <p className="text-sm font-medium text-foreground leading-none">{adminName}</p>

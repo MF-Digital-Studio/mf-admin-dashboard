@@ -297,3 +297,35 @@ model Settings {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+model AdminUser {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  isActive     Boolean  @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions AdminSession[]
+
+  @@index([email, isActive])
+}
+
+model AdminSession {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  lastSeenAt DateTime  @default(now())
+
+  adminUserId String
+  adminUser   AdminUser @relation(fields: [adminUserId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+}

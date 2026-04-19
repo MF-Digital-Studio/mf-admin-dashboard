@@ -1,10 +1,9 @@
-import { auth } from '@clerk/nextjs/server'
-import { isAllowedAdminUserId } from '@/lib/auth/admin-access'
+import { getCurrentAdminSession } from '@/lib/auth/session'
 
 type AdminApiAccessResult =
   | {
       ok: true
-      userId: string
+      session: NonNullable<Awaited<ReturnType<typeof getCurrentAdminSession>>>
     }
   | {
       ok: false
@@ -12,21 +11,14 @@ type AdminApiAccessResult =
     }
 
 export async function requireAdminApiAccess(): Promise<AdminApiAccessResult> {
-  const { userId } = await auth()
+  const session = await getCurrentAdminSession()
 
-  if (!userId) {
+  if (!session) {
     return {
       ok: false,
       response: Response.json({ error: 'Unauthorized' }, { status: 401 }),
     }
   }
 
-  if (!isAllowedAdminUserId(userId)) {
-    return {
-      ok: false,
-      response: Response.json({ error: 'Forbidden' }, { status: 403 }),
-    }
-  }
-
-  return { ok: true, userId }
+  return { ok: true, session }
 }
