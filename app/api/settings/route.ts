@@ -1,3 +1,4 @@
+import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -11,6 +12,10 @@ const DEFAULT_SETTINGS = {
 }
 
 export async function GET() {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   try {
     const settings = await prisma.settings.findUnique({
       where: { id: SETTINGS_ID },
@@ -33,6 +38,10 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const body = await request.json().catch(() => ({}))
   const data: Partial<{
     agencyName: string
@@ -82,3 +91,4 @@ export async function PATCH(request: Request) {
     )
   }
 }
+

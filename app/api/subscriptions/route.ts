@@ -1,9 +1,14 @@
+import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaSubscriptionToSubscription, mapSubscriptionCycleToPrisma } from '@/features/finance/subscription-mappers'
 import { subscriptionPayloadSchema } from '@/features/finance/subscription-schemas'
 
 export async function GET() {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const subscriptions = await prisma.companySubscription.findMany({
     orderBy: {
       createdAt: 'desc',
@@ -14,6 +19,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const body = await request.json()
   const parsed = subscriptionPayloadSchema.safeParse(body)
 
@@ -39,3 +48,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: 'Failed to create subscription' }, { status: 500 })
   }
 }
+

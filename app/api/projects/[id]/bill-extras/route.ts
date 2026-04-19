@@ -1,3 +1,4 @@
+import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -12,6 +13,10 @@ interface Params {
 const DEFAULT_PAYMENT_METHOD = 'Banka Havalesi'
 
 export async function POST(_: Request, { params }: Params) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const { id } = await params
   const mainMarker = getMainPaymentMarker(id)
   const legacyMainMarker = getLegacyMainPaymentMarker(id)
@@ -158,4 +163,5 @@ export async function POST(_: Request, { params }: Params) {
     return NextResponse.json({ message: 'Failed to bill extras' }, { status: 500 })
   }
 }
+
 

@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useState } from 'react'
+import { useClerk, useUser } from '@clerk/nextjs'
 import { Bell, ChevronDown, Menu, Plus, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Trash } from 'lucide-react'
@@ -52,6 +53,8 @@ interface DashboardTopbarProps {
 
 export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
   const pathname = usePathname()
+  const { user, isLoaded } = useUser()
+  const { signOut } = useClerk()
   const [notifications, setNotifications] = useState<TopbarNotification[]>([])
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(true)
 
@@ -99,6 +102,13 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
   }, [loadNotifications])
 
   const unreadCount = notifications.filter((notification) => !notification.read).length
+  const adminName = user?.fullName?.trim() || user?.firstName?.trim() || 'Admin'
+  const adminSubtitle = user?.primaryEmailAddress?.emailAddress ?? 'Yetkili Kullanici'
+  const adminInitials =
+    user?.firstName?.[0]?.toUpperCase() ||
+    user?.lastName?.[0]?.toUpperCase() ||
+    user?.primaryEmailAddress?.emailAddress?.[0]?.toUpperCase() ||
+    'A'
 
   const eventColorClass: Record<TopbarNotification['eventType'], string> = {
     CREATED: 'bg-emerald-500',
@@ -145,6 +155,10 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
       console.error('Failed to clear notifications', err)
       toast.error('Bildirimler temizlenemedi')
     }
+  }
+
+  const handleLogout = async () => {
+    await signOut({ redirectUrl: '/sign-in' })
   }
 
 
@@ -247,11 +261,11 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 rounded-none px-2 py-1 hover:bg-accent transition-colors cursor-pointer">
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
-                <span className="text-xs font-bold text-primary">MF</span>
+                <span className="text-xs font-bold text-primary">{isLoaded ? adminInitials : '...'}</span>
               </div>
               <div className="hidden md:block text-left">
-                <p className="text-sm font-medium text-foreground leading-none">Admin</p>
-                <p className="text-xs text-muted-foreground leading-none mt-0.5">Kurucu</p>
+                <p className="text-sm font-medium text-foreground leading-none">{adminName}</p>
+                <p className="text-xs text-muted-foreground leading-none mt-0.5">{adminSubtitle}</p>
               </div>
               <ChevronDown className="w-3 h-3 text-muted-foreground hidden md:block" />
             </button>
@@ -261,7 +275,7 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
               <Link href="/settings">Ayarlar</Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator className="bg-border" />
-            <DropdownMenuItem className="text-sm cursor-pointer hover:bg-accent">
+            <DropdownMenuItem className="text-sm cursor-pointer hover:bg-accent" onSelect={() => void handleLogout()}>
               Çıkış Yap
             </DropdownMenuItem>
           </DropdownMenuContent>

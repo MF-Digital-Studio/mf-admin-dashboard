@@ -1,3 +1,4 @@
+import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaTaskToTask, mapTaskPriorityToPrisma, mapTaskStatusToPrisma } from '@/features/tasks/mappers'
@@ -6,6 +7,10 @@ import { createCrudNotification } from '@/lib/notifications'
 import { resolveTaskBillingState } from '@/features/tasks/billing'
 
 export async function GET(request: Request) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const { searchParams } = new URL(request.url)
   const projectId = searchParams.get('projectId')
 
@@ -28,6 +33,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const body = await request.json()
   const parsed = taskPayloadSchema.safeParse(body)
 
@@ -89,3 +98,4 @@ export async function POST(request: Request) {
 
   return NextResponse.json(mapPrismaTaskToTask(created), { status: 201 })
 }
+

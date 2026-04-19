@@ -1,5 +1,6 @@
 ﻿import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
+import { ClerkProvider } from '@clerk/nextjs'
 import './globals.css'
 import { DashboardShell } from '@/components/layout/dashboard-shell'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -29,10 +30,12 @@ export default function RootLayout({
   return (
     <html lang="tr" className="bg-background" suppressHydrationWarning>
       <body className={`${inter.className} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem storageKey="mf-admin-theme">
-          <DashboardShell>{children}</DashboardShell>
-          <Toaster position="top-right" richColors />
-        </ThemeProvider>
+        <ClerkProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem storageKey="mf-admin-theme">
+            <DashboardShell>{children}</DashboardShell>
+            <Toaster position="top-right" richColors />
+          </ThemeProvider>
+        </ClerkProvider>
       </body>
     </html>
   )

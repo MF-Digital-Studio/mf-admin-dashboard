@@ -1,3 +1,4 @@
+import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -47,6 +48,10 @@ function withDevError(message: string, error: unknown, status = 500) {
 }
 
 export async function GET() {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   try {
     const notes = await prisma.note.findMany({
       include: {
@@ -78,6 +83,10 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const body = (await request.json().catch(() => null)) as Record<string, unknown> | null
   if (!body || typeof body !== 'object') {
     return NextResponse.json({ message: 'Invalid payload' }, { status: 400 })
@@ -141,3 +150,4 @@ export async function POST(request: Request) {
     return withDevError('Failed to create note', error, 500)
   }
 }
+

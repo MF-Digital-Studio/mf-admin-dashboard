@@ -1,3 +1,4 @@
+import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { ensureSystemNotifications, listRecentActivities } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
@@ -23,6 +24,10 @@ function formatRelativeTime(date: Date): string {
 }
 
 export async function GET() {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const now = new Date()
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()))
   const soonBoundary = new Date(today)
@@ -268,3 +273,4 @@ export async function GET() {
     activities,
   })
 }
+

@@ -1,3 +1,4 @@
+import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
@@ -10,6 +11,10 @@ interface Params {
 }
 
 export async function GET(_: Request, { params }: Params) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const { id } = await params
   const payment = await prisma.payment.findUnique({
     where: { id },
@@ -40,6 +45,10 @@ export async function GET(_: Request, { params }: Params) {
 }
 
 export async function PATCH(request: Request, { params }: Params) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const { id } = await params
   const body = await request.json()
   const parsed = paymentPayloadSchema.partial().safeParse(body)
@@ -125,6 +134,10 @@ export async function PATCH(request: Request, { params }: Params) {
 }
 
 export async function DELETE(_: Request, { params }: Params) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   const { id } = await params
 
   try {
@@ -156,3 +169,4 @@ export async function DELETE(_: Request, { params }: Params) {
     return NextResponse.json({ message: 'Failed to delete payment' }, { status: 500 })
   }
 }
+

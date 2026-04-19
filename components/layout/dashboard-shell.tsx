@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 import { DashboardSidebar } from './dashboard-sidebar'
 import { DashboardTopbar } from './dashboard-topbar'
@@ -11,6 +12,11 @@ interface DashboardShellProps {
 
 export function DashboardShell({ children }: DashboardShellProps) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const pathname = usePathname()
+
+  if (pathname.startsWith('/sign-in') || pathname.startsWith('/unauthorized')) {
+    return <>{children}</>
+  }
 
   return (
     <div className="flex h-dvh min-h-0 bg-background text-foreground">

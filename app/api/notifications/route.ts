@@ -1,7 +1,12 @@
+import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { ensureSystemNotifications, listRecentNotifications, markAllNotificationsRead, markNotificationRead, clearBellNotifications } from '@/lib/notifications'
 
 export async function GET() {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   try {
     try {
       await ensureSystemNotifications()
@@ -17,6 +22,10 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const adminCheck = await requireAdminApiAccess()
+  if (!adminCheck.ok) {
+    return adminCheck.response
+  }
   try {
     const body = (await request.json().catch(() => null)) as { id?: string; markAllRead?: boolean; clearBell?: boolean } | null
 
@@ -40,3 +49,4 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true })
   }
 }
+
