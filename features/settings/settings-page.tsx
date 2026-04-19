@@ -29,6 +29,13 @@ type SettingsData = {
   defaultCurrency: string
 }
 
+type TeamMember = {
+  id: string
+  name: string
+  email: string
+  isActive: boolean
+}
+
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init)
   if (!response.ok) {
@@ -43,6 +50,7 @@ export function SettingsPage() {
   const [saved, setSaved] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [settings, setSettings] = useState<SettingsData>({
     agencyName: 'MF Digital Studio',
     email: 'info@mfdigital.com',
@@ -59,8 +67,12 @@ export function SettingsPage() {
 
   const loadSettings = async () => {
     try {
-      const data = await fetchJson<SettingsData>('/api/settings')
+      const [data, admins] = await Promise.all([
+        fetchJson<SettingsData>('/api/settings'),
+        fetchJson<TeamMember[]>('/api/admin-users'),
+      ])
       setSettings(data)
+      setTeamMembers(admins)
     } catch (error) {
       console.error('Failed to load settings:', error)
     } finally {
@@ -185,19 +197,35 @@ export function SettingsPage() {
 
             <div className="bg-card border border-border rounded-xl overflow-hidden">
               <div className="px-5 py-4 border-b border-border flex items-center justify-between">
-                <h4 className="text-sm font-semibold text-foreground">Üyeler (1)</h4>
+                <h4 className="text-sm font-semibold text-foreground">Üyeler ({teamMembers.length})</h4>
               </div>
-              <div className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/40 transition-colors">
-                <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                  <span className="text-sm font-bold text-primary">MF</span>
+              {teamMembers.map((member) => (
+                <div key={member.id} className="flex items-center gap-3 px-5 py-3 hover:bg-secondary/40 transition-colors">
+                  <div className="w-8 h-8 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-primary">
+                      {member.name.slice(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{member.name}</p>
+                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                  </div>
+                  <span className="text-sm text-muted-foreground">Kurucu / Admin</span>
+                  <span
+                    className={cn(
+                      'px-2 py-0.5 rounded border text-[10px] font-semibold',
+                      member.isActive
+                        ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        : 'bg-muted text-muted-foreground border-border',
+                    )}
+                  >
+                    {member.isActive ? 'Aktif' : 'Pasif'}
+                  </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">Admin</p>
-                  <p className="text-sm text-muted-foreground">admin@mfdigitalstudio.com</p>
-                </div>
-                <span className="text-sm text-muted-foreground">Kurucu / Lider</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">Aktif</span>
-              </div>
+              ))}
+              {!isLoading && teamMembers.length === 0 && (
+                <div className="px-5 py-4 text-sm text-muted-foreground">Henüz ekip üyesi bulunmuyor.</div>
+              )}
             </div>
           </div>
         )}

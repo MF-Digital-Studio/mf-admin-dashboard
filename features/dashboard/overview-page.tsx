@@ -114,6 +114,7 @@ function formattedTodayLabel(): string {
 export function OverviewPage() {
   const [data, setData] = useState<DashboardOverviewData>(fallbackData)
   const [error, setError] = useState<string | null>(null)
+  const [currentAdminName, setCurrentAdminName] = useState<string>('')
 
   const loadDashboard = useCallback(async () => {
     setError(null)
@@ -155,6 +156,35 @@ export function OverviewPage() {
       window.clearInterval(intervalId)
     }
   }, [loadDashboard])
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadCurrentAdmin = async () => {
+      try {
+        const response = await fetch('/api/auth/me', { cache: 'no-store' })
+        if (!response.ok) {
+          if (response.status === 401) {
+            window.location.href = '/login'
+          }
+          return
+        }
+
+        const authData = (await response.json()) as { user?: { name?: string } }
+        if (mounted && authData.user?.name) {
+          setCurrentAdminName(authData.user.name)
+        }
+      } catch {
+        // auth route is already protected; fail silently here
+      }
+    }
+
+    void loadCurrentAdmin()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
 
   const kpiCards = useMemo(
     () => [
@@ -226,7 +256,7 @@ export function OverviewPage() {
     <div className="h-full overflow-y-auto p-4 sm:p-6 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">Günaydın, Admin</h2>
+          <h2 className="text-lg font-semibold text-foreground">Merhaba, {currentAdminName || '...'}</h2>
           <p className="text-sm text-muted-foreground mt-0.5">Bugün odaklanman gerekenler - {formattedTodayLabel()}</p>
         </div>
         <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 rounded-lg px-3 py-2 w-full sm:w-auto">
