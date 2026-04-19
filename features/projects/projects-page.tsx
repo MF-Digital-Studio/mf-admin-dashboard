@@ -52,6 +52,7 @@ type ProjectDetailsResponse = {
     totalCollectible: number
     billedExtras: number
     readyToBillExtras: number
+    financialAmountRecorded?: number
   }
 }
 
@@ -72,6 +73,9 @@ export function ProjectsPage() {
   const [priorityFilter, setPriorityFilter] = useState('All')
   const [serviceFilter, setServiceFilter] = useState('All')
   const [selected, setSelected] = useState<string | null>(null)
+  const [panelProjectId, setPanelProjectId] = useState<string | null>(null)
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
+  const [isPanelClosing, setIsPanelClosing] = useState(false)
   const [selectedDetails, setSelectedDetails] = useState<ProjectDetailsResponse | null>(null)
   const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -79,7 +83,6 @@ export function ProjectsPage() {
   const [error, setError] = useState<string | null>(null)
   const [confirmProject, setConfirmProject] = useState<null | { id: string; name: string }>(null)
   const [isMarkingPayment, setIsMarkingPayment] = useState(false)
-  const [isBillingExtras, setIsBillingExtras] = useState(false)
 
   const loadProjects = useCallback(async () => {
     const data = await fetchJson<Project[]>('/api/projects')
@@ -126,16 +129,35 @@ export function ProjectsPage() {
   }, [])
 
   useEffect(() => {
-    if (!selected) {
-      setSelectedDetails(null)
-      return
-    }
+    if (!selected) return
 
     setError(null)
     void loadProjectDetails(selected).catch((err) => {
       setError(err instanceof Error ? err.message : 'Failed to load project details')
     })
   }, [loadProjectDetails, selected])
+
+  useEffect(() => {
+    if (selected) {
+      setPanelProjectId(selected)
+      setIsPanelClosing(false)
+      const frame = window.requestAnimationFrame(() => {
+        setIsPanelOpen(true)
+      })
+      return () => window.cancelAnimationFrame(frame)
+    }
+
+    setIsPanelOpen(false)
+    setIsPanelClosing(true)
+    const timeoutId = window.setTimeout(() => {
+      setIsPanelClosing(false)
+      setPanelProjectId(null)
+      setSelectedDetails(null)
+      setActiveTaskId(null)
+    }, 450)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [selected])
 
   const filtered = useMemo(
     () =>
@@ -149,7 +171,7 @@ export function ProjectsPage() {
     [priorityFilter, projects, search, serviceFilter, statusFilter]
   )
 
-  const selectedProject = selectedDetails?.project ?? projects.find((project) => project.id === selected) ?? null
+  const selectedProject = selectedDetails?.project ?? projects.find((project) => project.id === panelProjectId) ?? null
   const projectTasks = selectedDetails?.tasks ?? []
 
   const selectedEditableValues: ProjectFormValues | undefined = selectedDetails?.editable
@@ -308,48 +330,45 @@ export function ProjectsPage() {
   }
 
   const handleMarkProjectPaymentCompleted = async () => {
-    if (!selectedProject || isProjectPaymentCompleted) return
+    if (!selectedProject) return
 
     setError(null)
     setIsMarkingPayment(true)
     try {
-      const response = await fetchJson<{ alreadyCompleted: boolean }>(`/api/projects/${selectedProject.id}/complete-payment`, {
+      const response = await fetchJson<{
+        recordType: 'created' | 'updated' | 'no_change'
+        billedTaskCount?: number
+        newBillableAmount?: number
+      }>(`/api/projects/${selectedProject.id}/record-payment`, {
         method: 'POST',
       })
+
       await Promise.all([loadProjects(), loadProjectDetails(selectedProject.id)])
-      toast.success(response.alreadyCompleted ? 'Proje ödemesi zaten tamamlandı olarak kayıtlı' : 'Proje ödemesi finansa işlendi')
+
+      if (response.recordType === 'created') {
+        toast.success('Proje ödemesi finansa işlendi')
+      } else if (response.recordType === 'updated') {
+        toast.success(
+          response.billedTaskCount && response.billedTaskCount > 0
+            ? `Proje ödemesi güncellendi (${response.billedTaskCount} yeni alt görev)`
+            : 'Proje ödemesi güncellendi'
+        )
+      } else if (response.recordType === 'no_change') {
+        toast.info('Yeni tahsil edilebilir iş bulunamadı')
+      }
+
       emitDashboardDataRefresh()
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to mark project payment completed'
+      const message = err instanceof Error ? err.message : 'Failed to record project payment'
       setError(message)
     } finally {
       setIsMarkingPayment(false)
     }
   }
 
-  const handleBillExtras = async () => {
-    if (!selectedProject || !isProjectPaymentCompleted || financialSummary.readyToBillExtras <= 0) return
-
-    setError(null)
-    setIsBillingExtras(true)
-    try {
-      const response = await fetchJson<{ billedTaskCount: number }>(`/api/projects/${selectedProject.id}/bill-extras`, {
-        method: 'POST',
-      })
-      await Promise.all([loadProjects(), loadProjectDetails(selectedProject.id)])
-      toast.success(`Ek işler finansa işlendi (${response.billedTaskCount} alt görev)`)
-      emitDashboardDataRefresh()
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to bill extras'
-      setError(message)
-    } finally {
-      setIsBillingExtras(false)
-    }
-  }
-
   return (
     <div className="flex h-full overflow-hidden">
-      <div className={cn('flex-1 overflow-y-auto p-4 sm:p-6 space-y-5', selected && 'hidden xl:block')}>
+      <div className={cn('flex-1 overflow-y-auto p-4 sm:p-6 space-y-5', (selected || isPanelClosing) && 'hidden xl:block')}>
         <PageHeader
           title="Projeler"
           description={`${projects.length} toplam proje`}
@@ -440,7 +459,12 @@ export function ProjectsPage() {
       </div>
 
       {selectedProject && (
-        <div className="w-full xl:w-[420px] border-l border-border bg-card overflow-y-auto shrink-0">
+        <div
+          className={cn(
+            'w-full xl:w-[420px] border-l border-border bg-card overflow-y-auto shrink-0 transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform',
+            isPanelOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-full pointer-events-none'
+          )}
+        >
           <div className="sticky top-0 bg-card border-b border-border px-5 py-4 z-10 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-foreground">Proje Detayı</h3>
@@ -453,18 +477,9 @@ export function ProjectsPage() {
                 size="sm"
                 className="h-8 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
                 onClick={() => void handleMarkProjectPaymentCompleted()}
-                disabled={isProjectPaymentCompleted || isMarkingPayment}
+                disabled={isMarkingPayment}
               >
-                {isProjectPaymentCompleted ? 'Ödeme Kaydı Oluşturuldu' : 'Ödeme Tamamlandı'}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 border-border"
-                onClick={() => void handleBillExtras()}
-                disabled={!isProjectPaymentCompleted || financialSummary.readyToBillExtras <= 0 || isBillingExtras}
-              >
-                Bill Extras
+                {isProjectPaymentCompleted ? 'Ödeme Güncelle' : 'Ödeme Tamamlandı'}
               </Button>
               <CreateEntityDialog
                 entity="project"
@@ -529,13 +544,9 @@ export function ProjectsPage() {
                 <p className="text-sm text-muted-foreground">Toplam Tahsil Edilebilir</p>
                 <p className="text-base font-bold text-foreground">{formatCurrency(financialSummary.totalCollectible)}</p>
               </div>
-              <div className="p-3 rounded-lg bg-secondary border border-border">
-                <p className="text-sm text-muted-foreground">Billed Extras</p>
-                <p className="text-base font-bold text-foreground">{formatCurrency(financialSummary.billedExtras)}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-secondary border border-border">
-                <p className="text-sm text-muted-foreground">Billable Extras</p>
-                <p className="text-base font-bold text-foreground">{formatCurrency(financialSummary.readyToBillExtras)}</p>
+              <div className="p-3 rounded-lg bg-secondary border border-green-500/30">
+                <p className="text-sm text-muted-foreground">Finansa Yansıtılan Tutar</p>
+                <p className="text-base font-bold text-green-400">{formatCurrency(financialSummary.financialAmountRecorded ?? 0)}</p>
               </div>
             </div>
 

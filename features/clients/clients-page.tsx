@@ -58,6 +58,8 @@ export function ClientsPage() {
   const [statusFilter, setStatusFilter] = useState('All')
   const [serviceFilter, setServiceFilter] = useState('All')
   const [selected, setSelected] = useState<string | null>(null)
+  const [panelClientId, setPanelClientId] = useState<string | null>(null)
+  const [isPanelOpen, setIsPanelOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [selectedDetails, setSelectedDetails] = useState<ClientDetailsResponse | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -109,16 +111,31 @@ export function ClientsPage() {
   }, [])
 
   useEffect(() => {
-    if (!selected) {
-      setSelectedDetails(null)
-      return
-    }
+    if (!selected) return
 
     setError(null)
     void loadClientDetails(selected).catch((err) => {
       setError(err instanceof Error ? err.message : 'Failed to load client details')
     })
   }, [loadClientDetails, selected])
+
+  useEffect(() => {
+    if (selected) {
+      setPanelClientId(selected)
+      const frame = window.requestAnimationFrame(() => {
+        setIsPanelOpen(true)
+      })
+      return () => window.cancelAnimationFrame(frame)
+    }
+
+    setIsPanelOpen(false)
+    const timeoutId = window.setTimeout(() => {
+      setPanelClientId(null)
+      setSelectedDetails(null)
+    }, 320)
+
+    return () => window.clearTimeout(timeoutId)
+  }, [selected])
 
   const filtered = useMemo(
     () =>
@@ -134,7 +151,7 @@ export function ClientsPage() {
     [clients, search, serviceFilter, statusFilter]
   )
 
-  const selectedClient = selectedDetails?.client ?? clients.find((client) => client.id === selected) ?? null
+  const selectedClient = selectedDetails?.client ?? clients.find((client) => client.id === panelClientId) ?? null
   const clientProjects = selectedDetails?.projects ?? []
   const clientPayments = selectedDetails?.payments ?? []
   const instagramLink = normalizeInstagram(selectedClient?.instagram)
@@ -344,7 +361,12 @@ export function ClientsPage() {
       </div>
 
       {selectedClient && (
-        <div className="w-full xl:w-[380px] border-l border-border bg-card overflow-y-auto shrink-0">
+        <div
+          className={cn(
+            'w-full xl:w-[380px] border-l border-border bg-card overflow-y-auto shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform',
+            isPanelOpen ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 pointer-events-none'
+          )}
+        >
           <div className="sticky top-0 bg-card border-b border-border px-5 py-4 z-10 space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-foreground">Müşteri Detayı</h3>

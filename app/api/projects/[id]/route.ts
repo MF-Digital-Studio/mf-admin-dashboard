@@ -45,6 +45,7 @@ export async function GET(_: Request, { params }: Params) {
         select: {
           status: true,
           notes: true,
+          amount: true,
         },
       },
     },
@@ -73,6 +74,10 @@ export async function GET(_: Request, { params }: Params) {
   }, 0)
   const hasMainPayment = project.payments.some((payment) => payment.status === 'PAID' && isMainProjectPaymentNote(project.id, payment.notes))
 
+  // Get the amount recorded in finance (main project payment amount)
+  const mainPayment = project.payments.find((payment) => payment.status === 'PAID' && isMainProjectPaymentNote(project.id, payment.notes))
+  const financialAmountRecorded = mainPayment ? Number(mainPayment.amount.toString()) : 0
+
   return NextResponse.json({
     project: mapPrismaProjectToProject(project),
     editable: mapPrismaProjectToEditable(project),
@@ -85,6 +90,7 @@ export async function GET(_: Request, { params }: Params) {
       totalCollectible: baseBudget + completedExtras,
       billedExtras,
       readyToBillExtras,
+      financialAmountRecorded,
     },
   })
 }

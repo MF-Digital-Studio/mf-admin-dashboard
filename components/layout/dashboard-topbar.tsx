@@ -215,7 +215,7 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
             {isLoadingNotifications ? (
               <p className="px-2 py-3 text-sm text-muted-foreground">Yükleniyor...</p>
             ) : notifications.length > 0 ? (
-              notifications.slice(0, 6).map((notification) => (
+              notifications.slice(0, 4).map((notification) => (
                 <div key={notification.id} className="flex items-start gap-2.5 p-2 rounded-md hover:bg-accent cursor-pointer">
                   <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${eventColorClass[notification.eventType]}`} />
                   <div>
@@ -233,7 +233,7 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
               <div className="px-2 pt-2">
                 <button
                   onClick={handleClearBell}
-                  className="flex items-center gap-2 w-full rounded-none px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+                  className="flex items-center gap-2 w-full rounded-none px-2 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
                 >
                   <Trash className="w-4 h-4" />
                   <span>Tümünü Temizle</span>
@@ -245,7 +245,7 @@ export function DashboardTopbar({ onMobileMenuOpen }: DashboardTopbarProps) {
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 rounded-none px-2 py-1 hover:bg-accent transition-colors">
+            <button className="flex items-center gap-2 rounded-none px-2 py-1 hover:bg-accent transition-colors cursor-pointer">
               <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
                 <span className="text-xs font-bold text-primary">MF</span>
               </div>

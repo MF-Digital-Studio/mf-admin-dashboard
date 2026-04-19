@@ -33,7 +33,7 @@ export function InlineSelect({ value, options, onChange, className }: InlineSele
     return (
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <button className={cn('p-0 bg-transparent border-0', className)}>
+                <button className={cn('p-0 bg-transparent border-0 cursor-pointer', className)}>
                     <BadgePill tone={('zinc' as any)} className="cursor-pointer">
                         <span className="flex items-center gap-1">
                             {current.label}
