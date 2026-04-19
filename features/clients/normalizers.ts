@@ -37,6 +37,10 @@ export function normalizeWebsite(value: string | null | undefined): string | nul
   return ensureHttps(normalized)
 }
 
+export function normalizeLocation(value: string | null | undefined): string | null {
+  return trimToNull(value)
+}
+
 function extractWhatsAppDigits(value: string): string {
   if (value.includes('wa.me/')) {
     return value.split('wa.me/')[1]?.split('?')[0]?.replace(/\D/g, '') ?? ''
@@ -50,21 +54,41 @@ function extractWhatsAppDigits(value: string): string {
   return value.replace(/\D/g, '')
 }
 
+function normalizeTurkishWhatsAppDigits(digits: string): string {
+  if (digits.startsWith('0090')) {
+    return digits.slice(2)
+  }
+
+  if (digits.startsWith('90')) {
+    return digits
+  }
+
+  if (digits.startsWith('0')) {
+    return `90${digits.slice(1)}`
+  }
+
+  if (digits.startsWith('5')) {
+    return `90${digits}`
+  }
+
+  return digits
+}
+
 export function normalizeWhatsApp(value: string | null | undefined): string | null {
   const normalized = trimToNull(value)
   if (!normalized) {
     return null
   }
 
-  const digits = extractWhatsAppDigits(normalized)
+  const digits = normalizeTurkishWhatsAppDigits(extractWhatsAppDigits(normalized))
   if (!digits) {
     return null
   }
 
-  return `https://wa.me/${digits}`
+  return digits
 }
 
 export function toWhatsAppLink(whatsAppValue: string | null | undefined, phoneValue: string | null | undefined): string | null {
-  return normalizeWhatsApp(whatsAppValue) ?? normalizeWhatsApp(phoneValue)
+  const normalized = normalizeWhatsApp(whatsAppValue) ?? normalizeWhatsApp(phoneValue)
+  return normalized ? `https://wa.me/${normalized}` : null
 }
-

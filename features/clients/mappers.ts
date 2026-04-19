@@ -90,7 +90,7 @@ export function mapPrismaClientToClientSummary(
     lastContact: toDateString(latestPaymentDate ?? client.updatedAt),
     tags: [service],
     notes: client.notes ?? '',
-    location: '-',
+    location: client.location ?? '-',
   }
 }
 
@@ -131,6 +131,7 @@ export function mapPrismaClientToEditable(client: PrismaClientModel) {
     contact: client.contactPerson,
     email: client.email ?? '',
     phone: client.phone,
+    location: client.location ?? '',
     instagram: client.instagram ?? '',
     whatsapp: client.whatsapp ?? '',
     website: client.website ?? '',

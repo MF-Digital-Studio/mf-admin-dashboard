@@ -114,6 +114,7 @@ model Client {
   instagram     String?
   whatsapp      String?
   website       String?
+  location      String?
   serviceType   ServiceType
   status        ClientStatus @default(LEAD)
   notes         String?

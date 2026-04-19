@@ -19,6 +19,7 @@ export const clientPayloadSchema = z.object({
   contact: z.string().trim().min(2, 'Contact is required').max(120),
   email: optionalEmailSchema,
   phone: z.string().trim().min(7, 'Phone is required').max(30),
+  location: z.string().trim().max(160).optional(),
   instagram: z.string().trim().max(250).optional(),
   whatsapp: z.string().trim().max(250).optional(),
   website: z.string().trim().max(250).optional(),

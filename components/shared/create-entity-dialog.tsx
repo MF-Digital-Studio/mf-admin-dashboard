@@ -35,6 +35,7 @@ export interface ClientFormValues {
   company: string
   contact: string
   phone: string
+  location: string
   email: string
   instagram: string
   whatsapp: string
@@ -212,6 +213,10 @@ function ClientFields({ initialValues }: { initialValues?: ClientFormValues }) {
           <label className={fieldLabelClass}>Telefon</label>
           <Input name="phone" placeholder="+90" required defaultValue={initialValues?.phone ?? ''} />
         </div>
+      </div>
+      <div className="grid gap-2">
+        <label className={fieldLabelClass}>Konum</label>
+        <Input name="location" placeholder="Örn. İstanbul veya Ankara / Çankaya" defaultValue={initialValues?.location ?? ''} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
@@ -996,6 +1001,7 @@ export function CreateEntityDialog({
         company: String(formData.get('company') ?? ''),
         contact: String(formData.get('contact') ?? ''),
         phone: String(formData.get('phone') ?? ''),
+        location: String(formData.get('location') ?? ''),
         email: String(formData.get('email') ?? ''),
         instagram: String(formData.get('instagram') ?? ''),
         whatsapp: String(formData.get('whatsapp') ?? ''),

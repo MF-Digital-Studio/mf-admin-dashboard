@@ -10,7 +10,7 @@ import {
   mapServiceToPrisma,
   mapStatusToPrisma,
 } from '@/features/clients/mappers'
-import { normalizeEmail, normalizeInstagram, normalizeWebsite, normalizeWhatsApp } from '@/features/clients/normalizers'
+import { normalizeEmail, normalizeInstagram, normalizeLocation, normalizeWebsite, normalizeWhatsApp } from '@/features/clients/normalizers'
 import { clientPayloadSchema } from '@/features/clients/schemas'
 import { createCrudNotification } from '@/lib/notifications'
 
@@ -24,57 +24,63 @@ export async function GET(_: Request, { params }: Params) {
     return adminCheck.response
   }
   const { id } = await params
-  const client = await prisma.client.findUnique({
-    where: { id },
-    include: {
-      projects: {
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          tasks: {
-            select: {
-              status: true,
+  try {
+    const client = await prisma.client.findUnique({
+      where: { id },
+      include: {
+        projects: {
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            tasks: {
+              select: {
+                status: true,
+              },
             },
           },
+          orderBy: {
+            createdAt: 'desc',
+          },
         },
-        orderBy: {
-          createdAt: 'desc',
+        payments: {
+          select: {
+            id: true,
+            amount: true,
+            status: true,
+            paidAt: true,
+            createdAt: true,
+          },
+          orderBy: {
+            createdAt: 'desc',
+          },
         },
       },
-      payments: {
-        select: {
-          id: true,
-          amount: true,
-          status: true,
-          paidAt: true,
-          createdAt: true,
-        },
-        orderBy: {
-          createdAt: 'desc',
-        },
-      },
-    },
-  })
+    })
+    if (!client) {
+      return NextResponse.json({ message: 'Client not found' }, { status: 404 })
+    }
 
-  if (!client) {
-    return NextResponse.json({ message: 'Client not found' }, { status: 404 })
+    const projectsWithTaskSummary = client.projects.map((project) => ({
+      id: project.id,
+      name: project.name,
+      status: project.status,
+      taskCount: project.tasks.length,
+      completedTaskCount: project.tasks.filter((task) => task.status === 'DONE').length,
+    }))
+
+    return NextResponse.json({
+      client: mapPrismaClientToClientSummary(client),
+      editable: mapPrismaClientToEditable(client),
+      projects: projectsWithTaskSummary.map(mapPrismaProjectToClientDetail),
+      payments: client.payments.map(mapPrismaPaymentToClientDetail),
+    })
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2022') {
+      return NextResponse.json({ message: 'Client schema is out of sync with the database. Please apply the latest Prisma schema changes.' }, { status: 500 })
+    }
+    return NextResponse.json({ message: 'Failed to load client details' }, { status: 500 })
   }
-
-  const projectsWithTaskSummary = client.projects.map((project) => ({
-    id: project.id,
-    name: project.name,
-    status: project.status,
-    taskCount: project.tasks.length,
-    completedTaskCount: project.tasks.filter((task) => task.status === 'DONE').length,
-  }))
-
-  return NextResponse.json({
-    client: mapPrismaClientToClientSummary(client),
-    editable: mapPrismaClientToEditable(client),
-    projects: projectsWithTaskSummary.map(mapPrismaProjectToClientDetail),
-    payments: client.payments.map(mapPrismaPaymentToClientDetail),
-  })
 }
 
 export async function PATCH(request: Request, { params }: Params) {
@@ -100,6 +106,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (parsed.data.contact !== undefined) data.contactPerson = parsed.data.contact
   if (parsed.data.email !== undefined) data.email = normalizeEmail(parsed.data.email)
   if (parsed.data.phone !== undefined) data.phone = parsed.data.phone
+  if (parsed.data.location !== undefined) data.location = normalizeLocation(parsed.data.location)
   if (parsed.data.instagram !== undefined) data.instagram = normalizeInstagram(parsed.data.instagram)
   if (parsed.data.whatsapp !== undefined) data.whatsapp = normalizeWhatsApp(parsed.data.whatsapp)
   if (parsed.data.website !== undefined) data.website = normalizeWebsite(parsed.data.website)

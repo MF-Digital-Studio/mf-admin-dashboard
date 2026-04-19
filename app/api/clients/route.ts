@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { mapPrismaClientToClientSummary, mapServiceToPrisma, mapStatusToPrisma } from '@/features/clients/mappers'
-import { normalizeEmail, normalizeInstagram, normalizeWebsite, normalizeWhatsApp } from '@/features/clients/normalizers'
+import { normalizeEmail, normalizeInstagram, normalizeLocation, normalizeWebsite, normalizeWhatsApp } from '@/features/clients/normalizers'
 import { clientPayloadSchema } from '@/features/clients/schemas'
 import { createCrudNotification } from '@/lib/notifications'
 
@@ -12,27 +12,35 @@ export async function GET() {
   if (!adminCheck.ok) {
     return adminCheck.response
   }
-  const clients = await prisma.client.findMany({
-    include: {
-      projects: {
-        select: {
-          status: true,
+  try {
+    const clients = await prisma.client.findMany({
+      include: {
+        projects: {
+          select: {
+            status: true,
+          },
+        },
+        payments: {
+          select: {
+            amount: true,
+            paidAt: true,
+            createdAt: true,
+          },
         },
       },
-      payments: {
-        select: {
-          amount: true,
-          paidAt: true,
-          createdAt: true,
-        },
+      orderBy: {
+        createdAt: 'desc',
       },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  })
+    })
 
-  return NextResponse.json(clients.map(mapPrismaClientToClientSummary))
+    return NextResponse.json(clients.map(mapPrismaClientToClientSummary))
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2022') {
+      return NextResponse.json({ message: 'Client schema is out of sync with the database. Please apply the latest Prisma schema changes.' }, { status: 500 })
+    }
+
+    return NextResponse.json({ message: 'Failed to load clients' }, { status: 500 })
+  }
 }
 
 export async function POST(request: Request) {
@@ -54,6 +62,7 @@ export async function POST(request: Request) {
         contactPerson: parsed.data.contact,
         email: normalizeEmail(parsed.data.email),
         phone: parsed.data.phone,
+        location: normalizeLocation(parsed.data.location),
         instagram: normalizeInstagram(parsed.data.instagram),
         whatsapp: normalizeWhatsApp(parsed.data.whatsapp),
         website: normalizeWebsite(parsed.data.website),

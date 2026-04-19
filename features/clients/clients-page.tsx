@@ -167,6 +167,7 @@ export function ClientsPage() {
         company: selectedClient.company,
         contact: selectedClient.contact,
         phone: selectedClient.phone,
+        location: selectedClient.location === '-' ? '' : selectedClient.location,
         email: selectedClient.email ?? '',
         instagram: selectedClient.instagram ?? '',
         whatsapp: selectedClient.whatsapp ?? '',

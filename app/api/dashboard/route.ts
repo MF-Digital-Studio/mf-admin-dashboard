@@ -2,6 +2,7 @@ import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { ensureSystemNotifications, listRecentActivities } from '@/lib/notifications'
 import { prisma } from '@/lib/prisma'
+import { Prisma } from '@prisma/client'
 import type { ActivityItem, MonthlyRevenuePoint } from '@/types'
 
 function monthKey(date: Date): string {
@@ -23,6 +24,80 @@ function formatRelativeTime(date: Date): string {
   return `${days} gun once`
 }
 
+type RecentClientRow = {
+  id: string
+  companyName: string
+  contactPerson: string
+  status: 'LEAD' | 'IN_DISCUSSION' | 'ACTIVE' | 'COMPLETED' | 'INACTIVE'
+  createdAt: Date
+  location: string | null
+  payments: Array<{ amount: { toString(): string } }>
+}
+
+function isMissingClientColumnError(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2022') {
+    return false
+  }
+
+  const column = String(error.meta?.column ?? '').toLowerCase()
+  return column.includes('client') || column.includes('location')
+}
+
+async function loadRecentClientsRows(): Promise<RecentClientRow[]> {
+  try {
+    const rows = await prisma.client.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        payments: {
+          where: { status: 'PAID' },
+          select: { amount: true },
+        },
+      },
+      take: 4,
+    })
+
+    return rows.map((row) => ({
+      id: row.id,
+      companyName: row.companyName,
+      contactPerson: row.contactPerson,
+      status: row.status,
+      createdAt: row.createdAt,
+      location: row.location ?? null,
+      payments: row.payments,
+    }))
+  } catch (error) {
+    if (!isMissingClientColumnError(error)) {
+      throw error
+    }
+
+    // Fallback query omits newly-added client columns if the DB schema is behind.
+    const rows = await prisma.client.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        companyName: true,
+        contactPerson: true,
+        status: true,
+        createdAt: true,
+        payments: {
+          where: { status: 'PAID' },
+          select: { amount: true },
+        },
+      },
+      take: 4,
+    })
+
+    return rows.map((row) => ({
+      ...row,
+      location: null,
+    }))
+  }
+}
+
 export async function GET() {
   const adminCheck = await requireAdminApiAccess()
   if (!adminCheck.ok) {
@@ -39,7 +114,6 @@ export async function GET() {
     overdueTasks,
     tasksDueSoon,
     upcomingDeadlines,
-    recentClientsRaw,
     paidPayments,
     pendingPayments,
     pendingProposals,
@@ -81,18 +155,6 @@ export async function GET() {
       },
       orderBy: {
         deadline: 'asc',
-      },
-      take: 4,
-    }),
-    prisma.client.findMany({
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        payments: {
-          where: { status: 'PAID' },
-          select: { amount: true },
-        },
       },
       take: 4,
     }),
@@ -140,6 +202,7 @@ export async function GET() {
       },
     }),
   ])
+  const recentClientsRaw = await loadRecentClientsRows()
 
   const revenueByMonth = new Map<string, number>()
   for (const payment of paidPayments) {
@@ -219,9 +282,9 @@ export async function GET() {
       .map((entry) => entry.activity)
   }
 
-  const recentClients = recentClientsRaw.map((client) => ({
-    id: client.id,
-    company: client.companyName,
+    const recentClients = recentClientsRaw.map((client) => ({
+      id: client.id,
+      company: client.companyName,
     contact: client.contactPerson,
     status:
       client.status === 'LEAD'
@@ -233,9 +296,9 @@ export async function GET() {
             : client.status === 'COMPLETED'
               ? 'Completed'
               : 'Inactive',
-    totalPaid: client.payments.reduce((sum, p) => sum + Number(p.amount.toString()), 0),
-    location: '-',
-  }))
+      totalPaid: client.payments.reduce((sum, p) => sum + Number(p.amount.toString()), 0),
+      location: client.location ?? '-',
+    }))
 
   return NextResponse.json({
     activeClients,
