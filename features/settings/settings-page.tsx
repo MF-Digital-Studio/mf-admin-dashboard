@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Check, Palette, User, Users } from 'lucide-react'
-import { useTheme } from 'next-themes'
+import { useTheme } from '@/components/theme-provider'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'

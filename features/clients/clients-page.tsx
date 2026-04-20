@@ -168,6 +168,7 @@ export function ClientsPage() {
         contact: selectedClient.contact,
         phone: selectedClient.phone,
         location: selectedClient.location === '-' ? '' : selectedClient.location,
+        category: selectedClient.category ?? '',
         email: selectedClient.email ?? '',
         instagram: selectedClient.instagram ?? '',
         whatsapp: selectedClient.whatsapp ?? '',
@@ -305,7 +306,10 @@ export function ClientsPage() {
                           </div>
                           <div>
                             <p className="font-medium text-foreground">{client.company}</p>
-                            <p className="text-xs text-muted-foreground">{client.location}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {client.location}
+                              {client.category ? ` • ${client.category}` : ''}
+                            </p>
                           </div>
                         </div>
                       </td>
@@ -400,6 +404,9 @@ export function ClientsPage() {
                   <MapPin className="w-3 h-3 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">{selectedClient.location}</span>
                 </div>
+                {selectedClient.category && (
+                  <p className="text-sm text-muted-foreground mt-1">Kategori: {selectedClient.category}</p>
+                )}
               </div>
               <StatusBadge status={selectedClient.status} className="ml-auto" />
             </div>

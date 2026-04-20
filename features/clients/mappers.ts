@@ -91,6 +91,7 @@ export function mapPrismaClientToClientSummary(
     tags: [service],
     notes: client.notes ?? '',
     location: client.location ?? '-',
+    category: client.category ?? undefined,
   }
 }
 
@@ -132,6 +133,7 @@ export function mapPrismaClientToEditable(client: PrismaClientModel) {
     email: client.email ?? '',
     phone: client.phone,
     location: client.location ?? '',
+    category: client.category ?? '',
     instagram: client.instagram ?? '',
     whatsapp: client.whatsapp ?? '',
     website: client.website ?? '',

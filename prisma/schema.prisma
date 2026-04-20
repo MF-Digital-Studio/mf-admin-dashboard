@@ -115,6 +115,7 @@ model Client {
   whatsapp      String?
   website       String?
   location      String?
+  category      String?
   serviceType   ServiceType
   status        ClientStatus @default(LEAD)
   notes         String?

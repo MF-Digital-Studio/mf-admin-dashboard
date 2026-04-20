@@ -10,12 +10,32 @@ import {
   mapServiceToPrisma,
   mapStatusToPrisma,
 } from '@/features/clients/mappers'
-import { normalizeEmail, normalizeInstagram, normalizeLocation, normalizeWebsite, normalizeWhatsApp } from '@/features/clients/normalizers'
+import { normalizeCategory, normalizeEmail, normalizeInstagram, normalizeLocation, normalizeWebsite, normalizeWhatsApp } from '@/features/clients/normalizers'
 import { clientPayloadSchema } from '@/features/clients/schemas'
 import { createCrudNotification } from '@/lib/notifications'
 
 interface Params {
   params: Promise<{ id: string }>
+}
+
+const CLIENT_LABEL = '\u004d\u00fc\u015fteri'
+
+function isMissingClientCategoryColumn(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== 'P2022') {
+    return false
+  }
+
+  const column = typeof error.meta?.column === 'string' ? error.meta.column : ''
+  return column.includes('Client') && column.includes('category')
+}
+
+async function ensureClientCategoryColumn(): Promise<boolean> {
+  try {
+    await prisma.$executeRawUnsafe('ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "category" TEXT')
+    return true
+  } catch {
+    return false
+  }
 }
 
 export async function GET(_: Request, { params }: Params) {
@@ -24,8 +44,9 @@ export async function GET(_: Request, { params }: Params) {
     return adminCheck.response
   }
   const { id } = await params
-  try {
-    const client = await prisma.client.findUnique({
+
+  const loadClientWithDetails = async () =>
+    prisma.client.findUnique({
       where: { id },
       include: {
         projects: {
@@ -57,6 +78,9 @@ export async function GET(_: Request, { params }: Params) {
         },
       },
     })
+
+  try {
+    const client = await loadClientWithDetails()
     if (!client) {
       return NextResponse.json({ message: 'Client not found' }, { status: 404 })
     }
@@ -76,6 +100,99 @@ export async function GET(_: Request, { params }: Params) {
       payments: client.payments.map(mapPrismaPaymentToClientDetail),
     })
   } catch (error) {
+    if (isMissingClientCategoryColumn(error)) {
+      const fixed = await ensureClientCategoryColumn()
+      if (fixed) {
+        const client = await loadClientWithDetails()
+        if (!client) {
+          return NextResponse.json({ message: 'Client not found' }, { status: 404 })
+        }
+
+        const projectsWithTaskSummary = client.projects.map((project) => ({
+          id: project.id,
+          name: project.name,
+          status: project.status,
+          taskCount: project.tasks.length,
+          completedTaskCount: project.tasks.filter((task) => task.status === 'DONE').length,
+        }))
+
+        return NextResponse.json({
+          client: mapPrismaClientToClientSummary(client),
+          editable: mapPrismaClientToEditable(client),
+          projects: projectsWithTaskSummary.map(mapPrismaProjectToClientDetail),
+          payments: client.payments.map(mapPrismaPaymentToClientDetail),
+        })
+      }
+
+      const legacyClient = await prisma.client.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          companyName: true,
+          contactPerson: true,
+          phone: true,
+          email: true,
+          instagram: true,
+          whatsapp: true,
+          website: true,
+          location: true,
+          serviceType: true,
+          status: true,
+          notes: true,
+          createdAt: true,
+          updatedAt: true,
+          projects: {
+            select: {
+              id: true,
+              name: true,
+              status: true,
+              tasks: {
+                select: {
+                  status: true,
+                },
+              },
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+          },
+          payments: {
+            select: {
+              id: true,
+              amount: true,
+              status: true,
+              paidAt: true,
+              createdAt: true,
+            },
+            orderBy: {
+              createdAt: 'desc',
+            },
+          },
+        },
+      })
+
+      if (!legacyClient) {
+        return NextResponse.json({ message: 'Client not found' }, { status: 404 })
+      }
+
+      const projectsWithTaskSummary = legacyClient.projects.map((project) => ({
+        id: project.id,
+        name: project.name,
+        status: project.status,
+        taskCount: project.tasks.length,
+        completedTaskCount: project.tasks.filter((task) => task.status === 'DONE').length,
+      }))
+
+      const legacyClientWithNullCategory = { ...legacyClient, category: null } as Parameters<typeof mapPrismaClientToClientSummary>[0]
+
+      return NextResponse.json({
+        client: mapPrismaClientToClientSummary(legacyClientWithNullCategory),
+        editable: mapPrismaClientToEditable(legacyClientWithNullCategory),
+        projects: projectsWithTaskSummary.map(mapPrismaProjectToClientDetail),
+        payments: legacyClient.payments.map(mapPrismaPaymentToClientDetail),
+      })
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2022') {
       return NextResponse.json({ message: 'Client schema is out of sync with the database. Please apply the latest Prisma schema changes.' }, { status: 500 })
     }
@@ -107,6 +224,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (parsed.data.email !== undefined) data.email = normalizeEmail(parsed.data.email)
   if (parsed.data.phone !== undefined) data.phone = parsed.data.phone
   if (parsed.data.location !== undefined) data.location = normalizeLocation(parsed.data.location)
+  if (parsed.data.category !== undefined) data.category = normalizeCategory(parsed.data.category)
   if (parsed.data.instagram !== undefined) data.instagram = normalizeInstagram(parsed.data.instagram)
   if (parsed.data.whatsapp !== undefined) data.whatsapp = normalizeWhatsApp(parsed.data.whatsapp)
   if (parsed.data.website !== undefined) data.website = normalizeWebsite(parsed.data.website)
@@ -138,12 +256,48 @@ export async function PATCH(request: Request, { params }: Params) {
       action: 'updated',
       entityType: 'CLIENT',
       entityId: updated.id,
-      entityLabel: 'Müşteri',
+      entityLabel: CLIENT_LABEL,
       detail: updated.companyName,
     }).catch(() => undefined)
 
     return NextResponse.json(mapPrismaClientToClientSummary(updated))
   } catch (error) {
+    if (isMissingClientCategoryColumn(error)) {
+      const fixed = await ensureClientCategoryColumn()
+      if (fixed) {
+        const updated = await prisma.client.update({
+          where: { id },
+          data,
+          include: {
+            projects: {
+              select: {
+                status: true,
+              },
+            },
+            payments: {
+              select: {
+                amount: true,
+                paidAt: true,
+                createdAt: true,
+              },
+            },
+          },
+        })
+
+        await createCrudNotification({
+          action: 'updated',
+          entityType: 'CLIENT',
+          entityId: updated.id,
+          entityLabel: CLIENT_LABEL,
+          detail: updated.companyName,
+        }).catch(() => undefined)
+
+        return NextResponse.json(mapPrismaClientToClientSummary(updated))
+      }
+
+      return NextResponse.json({ message: 'Client category column is missing in database. Please run latest Prisma migration.' }, { status: 409 })
+    }
+
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2025') {
         return NextResponse.json({ message: 'Client not found' }, { status: 404 })
@@ -174,7 +328,7 @@ export async function DELETE(_: Request, { params }: Params) {
       action: 'deleted',
       entityType: 'CLIENT',
       entityId: deleted.id,
-      entityLabel: 'Müşteri',
+      entityLabel: CLIENT_LABEL,
       detail: deleted.companyName,
     }).catch(() => undefined)
 
@@ -187,4 +341,3 @@ export async function DELETE(_: Request, { params }: Params) {
     return NextResponse.json({ message: 'Failed to delete client' }, { status: 500 })
   }
 }
-

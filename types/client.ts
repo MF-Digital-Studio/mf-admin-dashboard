@@ -19,4 +19,5 @@ export interface Client {
   tags: ServiceName[]
   notes: string
   location: string
+  category?: string
 }

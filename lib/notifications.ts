@@ -1,4 +1,4 @@
-import { type Notification as PrismaNotification, NotificationEntityType, NotificationEventType } from '@prisma/client'
+﻿import { type Notification as PrismaNotification, NotificationEntityType, NotificationEventType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import type { ActivityItem } from '@/types'
 
@@ -9,8 +9,8 @@ const CRUD_EVENT_TO_NOTIFICATION: Record<'created' | 'updated' | 'deleted', Noti
 }
 
 const CRUD_EVENT_TEXT: Record<'created' | 'updated' | 'deleted', string> = {
-  created: 'oluşturuldu',
-  updated: 'güncellendi',
+  created: 'olu\u015fturuldu',
+  updated: 'g\u00fcncellendi',
   deleted: 'silindi',
 }
 
@@ -31,14 +31,14 @@ function formatRelativeTime(date: Date): string {
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
   if (minutes < 60) {
-    return `${Math.max(1, minutes)} dk önce`
+    return `${Math.max(1, minutes)} dk \u00f6nce`
   }
 
   if (hours < 24) {
-    return `${hours} saat önce`
+    return `${hours} saat \u00f6nce`
   }
 
-  return `${days} gün önce`
+  return `${days} g\u00fcn \u00f6nce`
 }
 
 function toDateKey(value: Date): string {
@@ -109,7 +109,7 @@ export async function createCrudNotification(args: {
 
   return createNotification({
     title: `${args.entityLabel} ${actionText}`,
-    message: args.detail ? args.detail : `${args.entityLabel} kaydı ${actionText}`,
+    message: args.detail ? args.detail : `${args.entityLabel} kayd\u0131 ${actionText}`,
     eventType: CRUD_EVENT_TO_NOTIFICATION[args.action],
     entityType: args.entityType,
     entityId: args.entityId ?? null,
@@ -340,7 +340,7 @@ export async function ensureSystemNotifications() {
 
       jobs.push(
         createNotification({
-          title: 'Yaklaşan görev tarihi',
+          title: 'Yakla\u015fan g\u00f6rev tarihi',
           message: `${task.title} - ${task.project.name} (${toDateKey(task.dueDate)})`,
           eventType: 'DUE_SOON',
           entityType: 'TASK',
@@ -357,7 +357,7 @@ export async function ensureSystemNotifications() {
 
       jobs.push(
         createNotification({
-          title: 'Geciken görev',
+          title: 'Geciken g\u00f6rev',
           message: `${task.title} - ${task.project.name} (${toDateKey(task.dueDate)})`,
           eventType: 'OVERDUE',
           entityType: 'TASK',
@@ -374,7 +374,7 @@ export async function ensureSystemNotifications() {
 
       jobs.push(
         createNotification({
-          title: 'Yaklaşan proje teslimi',
+          title: 'Yakla\u015fan proje teslimi',
           message: `${project.name} - ${project.client.companyName} (${toDateKey(project.deadline)})`,
           eventType: 'DUE_SOON',
           entityType: 'PROJECT',

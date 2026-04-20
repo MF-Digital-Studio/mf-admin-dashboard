@@ -41,6 +41,10 @@ export function normalizeLocation(value: string | null | undefined): string | nu
   return trimToNull(value)
 }
 
+export function normalizeCategory(value: string | null | undefined): string | null {
+  return trimToNull(value)
+}
+
 function extractWhatsAppDigits(value: string): string {
   if (value.includes('wa.me/')) {
     return value.split('wa.me/')[1]?.split('?')[0]?.replace(/\D/g, '') ?? ''
