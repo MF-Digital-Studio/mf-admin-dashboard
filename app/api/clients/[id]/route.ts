@@ -2,6 +2,7 @@ import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { findDuplicateField, getDuplicateMessage } from '@/features/clients/duplicate-check'
 import {
   mapPrismaClientToClientSummary,
   mapPrismaClientToEditable,
@@ -215,6 +216,46 @@ export async function PATCH(request: Request, { params }: Params) {
 
   if (Object.keys(parsed.data).length === 0) {
     return NextResponse.json({ message: 'At least one field is required' }, { status: 400 })
+  }
+
+  const existingClient = await prisma.client.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      companyName: true,
+      email: true,
+      phone: true,
+      whatsapp: true,
+    },
+  })
+
+  if (!existingClient) {
+    return NextResponse.json({ message: 'Client not found' }, { status: 404 })
+  }
+
+  const allClients = await prisma.client.findMany({
+    select: {
+      id: true,
+      companyName: true,
+      email: true,
+      phone: true,
+      whatsapp: true,
+    },
+  })
+
+  const duplicateField = findDuplicateField(
+    allClients,
+    {
+      companyName: parsed.data.company ?? existingClient.companyName,
+      email: parsed.data.email !== undefined ? parsed.data.email : existingClient.email,
+      phone: parsed.data.phone ?? existingClient.phone,
+      whatsapp: parsed.data.whatsapp !== undefined ? parsed.data.whatsapp : existingClient.whatsapp,
+    },
+    { excludeId: id }
+  )
+
+  if (duplicateField) {
+    return NextResponse.json({ message: getDuplicateMessage(duplicateField) }, { status: 409 })
   }
 
   const data: Record<string, unknown> = {}

@@ -3,6 +3,15 @@ function trimToNull(value: string | null | undefined): string | null {
   return normalized.length > 0 ? normalized : null
 }
 
+export function normalizeNameForComparison(value: string | null | undefined): string | null {
+  const normalized = trimToNull(value)
+  if (!normalized) {
+    return null
+  }
+
+  return normalized.replace(/\s+/g, ' ').toLocaleLowerCase('tr-TR')
+}
+
 function ensureHttps(value: string): string {
   if (/^https?:\/\//i.test(value)) {
     return value
@@ -76,6 +85,16 @@ function normalizeTurkishWhatsAppDigits(digits: string): string {
   }
 
   return digits
+}
+
+export function normalizePhoneDigits(value: string | null | undefined): string | null {
+  const normalized = trimToNull(value)
+  if (!normalized) {
+    return null
+  }
+
+  const digits = normalizeTurkishWhatsAppDigits(normalized.replace(/\D/g, ''))
+  return digits.length > 0 ? digits : null
 }
 
 export function normalizeWhatsApp(value: string | null | undefined): string | null {

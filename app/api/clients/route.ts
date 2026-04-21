@@ -2,6 +2,7 @@ import { requireAdminApiAccess } from '@/lib/auth/require-admin-api'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
+import { findDuplicateField, getDuplicateMessage } from '@/features/clients/duplicate-check'
 import { mapPrismaClientToClientSummary, mapServiceToPrisma, mapStatusToPrisma } from '@/features/clients/mappers'
 import { normalizeCategory, normalizeEmail, normalizeInstagram, normalizeLocation, normalizeWebsite, normalizeWhatsApp } from '@/features/clients/normalizers'
 import { clientPayloadSchema } from '@/features/clients/schemas'
@@ -141,6 +142,27 @@ export async function POST(request: Request) {
 
   if (!parsed.success) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? 'Invalid payload' }, { status: 400 })
+  }
+
+  const existingClients = await prisma.client.findMany({
+    select: {
+      id: true,
+      companyName: true,
+      email: true,
+      phone: true,
+      whatsapp: true,
+    },
+  })
+
+  const duplicateField = findDuplicateField(existingClients, {
+    companyName: parsed.data.company,
+    email: parsed.data.email,
+    phone: parsed.data.phone,
+    whatsapp: parsed.data.whatsapp,
+  })
+
+  if (duplicateField) {
+    return NextResponse.json({ message: getDuplicateMessage(duplicateField) }, { status: 409 })
   }
 
   try {
