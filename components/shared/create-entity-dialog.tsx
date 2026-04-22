@@ -212,7 +212,7 @@ function ClientFields({ initialValues }: { initialValues?: ClientFormValues }) {
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Telefon</label>
-          <Input name="phone" placeholder="+90" required defaultValue={initialValues?.phone ?? ''} />
+          <Input name="phone" placeholder="+90" defaultValue={initialValues?.phone ?? ''} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">

@@ -14,11 +14,27 @@ const optionalEmailSchema = z
   })
   .refine((value) => value === undefined || value === null || z.string().email().safeParse(value).success, 'Invalid email')
 
+const optionalPhoneSchema = z.preprocess(
+  (value) => {
+    if (value === undefined || value === null) return undefined
+    if (typeof value !== 'string') return value
+
+    const trimmed = value.trim()
+    return trimmed.length === 0 ? null : trimmed
+  },
+  z
+    .string()
+    .min(7, 'Phone must be at least 7 characters')
+    .max(30)
+    .nullable()
+    .optional()
+)
+
 export const clientPayloadSchema = z.object({
   company: z.string().trim().min(2, 'Company is required').max(120),
   contact: z.string().trim().min(2, 'Contact is required').max(120),
   email: optionalEmailSchema,
-  phone: z.string().trim().min(7, 'Phone is required').max(30),
+  phone: optionalPhoneSchema,
   location: z.string().trim().max(160).optional(),
   category: z.string().trim().max(120).optional(),
   instagram: z.string().trim().max(250).optional(),

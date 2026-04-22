@@ -248,7 +248,7 @@ export async function PATCH(request: Request, { params }: Params) {
     {
       companyName: parsed.data.company ?? existingClient.companyName,
       email: parsed.data.email !== undefined ? parsed.data.email : existingClient.email,
-      phone: parsed.data.phone ?? existingClient.phone,
+      phone: parsed.data.phone !== undefined ? parsed.data.phone : existingClient.phone,
       whatsapp: parsed.data.whatsapp !== undefined ? parsed.data.whatsapp : existingClient.whatsapp,
     },
     { excludeId: id }
@@ -263,7 +263,7 @@ export async function PATCH(request: Request, { params }: Params) {
   if (parsed.data.company !== undefined) data.companyName = parsed.data.company
   if (parsed.data.contact !== undefined) data.contactPerson = parsed.data.contact
   if (parsed.data.email !== undefined) data.email = normalizeEmail(parsed.data.email)
-  if (parsed.data.phone !== undefined) data.phone = parsed.data.phone
+  if (parsed.data.phone !== undefined) data.phone = parsed.data.phone ?? ''
   if (parsed.data.location !== undefined) data.location = normalizeLocation(parsed.data.location)
   if (parsed.data.category !== undefined) data.category = normalizeCategory(parsed.data.category)
   if (parsed.data.instagram !== undefined) data.instagram = normalizeInstagram(parsed.data.instagram)
