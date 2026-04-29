@@ -156,6 +156,7 @@
     font-family: var(--font-sans);
   }
 
+
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
