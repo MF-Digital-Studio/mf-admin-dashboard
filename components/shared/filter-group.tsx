@@ -15,6 +15,7 @@ const filterLabelMap: Record<string, string> = {
   'In Discussion': 'Görüşmede',
   Completed: 'Tamamlandı',
   Inactive: 'Pasif',
+  Urgent: 'Acil',
   Planning: 'Planlama',
   Design: 'Tasarım',
   Development: 'Geliştirme',
@@ -56,7 +57,7 @@ export function FilterGroup({ options, value, onChange, className, buttonClassNa
           key={option}
           onClick={() => onChange(option)}
           className={cn(
-            'px-2.5 py-1 rounded text-[11px] font-medium border transition-colors',
+            'px-2.5 py-1 rounded text-xs font-medium border transition-colors',
             value === option
               ? 'bg-primary/15 text-primary border-primary/30'
               : 'border-border text-muted-foreground hover:bg-secondary',

@@ -1,6 +1,6 @@
 import type { ServiceName } from './common'
 
-export type ClientStatus = 'Lead' | 'In Discussion' | 'Active' | 'Completed' | 'Inactive'
+export type ClientStatus = 'Lead' | 'In Discussion' | 'Active' | 'Completed' | 'Inactive' | 'Urgent'
 
 export interface Client {
   id: string
@@ -16,6 +16,7 @@ export interface Client {
   activeProjects: number
   totalPaid: number
   lastContact: string
+  createdAt?: string
   tags: ServiceName[]
   notes: string
   location: string

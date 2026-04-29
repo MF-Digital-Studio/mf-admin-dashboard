@@ -152,8 +152,8 @@ interface NoteProjectOption {
   name: string
 }
 
-const fieldLabelClass = 'text-sm font-medium text-muted-foreground'
-const selectClass = 'h-9 w-full rounded-md border border-input bg-secondary px-3 text-sm text-foreground outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/40'
+const fieldLabelClass = 'text-[15px] font-medium text-muted-foreground'
+const selectClass = 'h-9 w-full rounded-md border border-input bg-secondary px-3 text-base text-foreground outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/40'
 
 const formMeta: Record<CreateEntityType, { title: string; description: string; saveLabel: string }> = {
   client: {
@@ -263,6 +263,7 @@ function ClientFields({ initialValues }: { initialValues?: ClientFormValues }) {
             <option>Lead</option>
             <option>In Discussion</option>
             <option>Active</option>
+            <option value="Urgent">Acil</option>
             <option>Completed</option>
             <option>Inactive</option>
           </select>

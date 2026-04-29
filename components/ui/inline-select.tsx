@@ -13,9 +13,10 @@ interface InlineSelectProps {
     options: Option[]
     onChange: (value: string) => Promise<void> | void
     className?: string
+    badgeClassName?: string
 }
 
-export function InlineSelect({ value, options, onChange, className }: InlineSelectProps) {
+export function InlineSelect({ value, options, onChange, className, badgeClassName }: InlineSelectProps) {
     const [isLoading, setIsLoading] = React.useState(false)
 
     const handleSelect = async (val: string) => {
@@ -34,7 +35,7 @@ export function InlineSelect({ value, options, onChange, className }: InlineSele
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <button className={cn('p-0 bg-transparent border-0 cursor-pointer', className)}>
-                    <BadgePill tone={('zinc' as any)} className="cursor-pointer">
+                    <BadgePill tone={('zinc' as any)} className={cn('cursor-pointer', badgeClassName)}>
                         <span className="flex items-center gap-1">
                             {current.label}
                             <ChevronDown className="w-3 h-3 opacity-60" />

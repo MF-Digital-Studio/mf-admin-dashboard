@@ -17,7 +17,7 @@ export function SearchField({ value, onChange, placeholder, className }: SearchF
           value={value}
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
-          className="pl-8 h-8 text-sm bg-secondary border-border placeholder:text-muted-foreground/60"
+          className="pl-8 h-9 text-base bg-secondary border-border placeholder:text-muted-foreground/60"
         />
       </div>
     </div>

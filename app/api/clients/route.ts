@@ -19,9 +19,27 @@ function isMissingClientCategoryColumn(error: unknown): boolean {
   return column.includes('Client') && column.includes('category')
 }
 
+function isMissingUrgentClientStatusEnum(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false
+  }
+
+  const message = typeof error.message === 'string' ? error.message : ''
+  return message.includes('ClientStatus') && message.includes('URGENT')
+}
+
 async function ensureClientCategoryColumn(): Promise<boolean> {
   try {
     await prisma.$executeRawUnsafe('ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "category" TEXT')
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function ensureUrgentClientStatusEnum(): Promise<boolean> {
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TYPE "public"."ClientStatus" ADD VALUE IF NOT EXISTS 'URGENT'`)
     return true
   } catch {
     return false
@@ -144,6 +162,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: parsed.error.issues[0]?.message ?? 'Invalid payload' }, { status: 400 })
   }
 
+  if (parsed.data.status === 'Urgent') {
+    await ensureUrgentClientStatusEnum()
+  }
+
   const existingClients = await prisma.client.findMany({
     select: {
       id: true,
@@ -207,6 +229,52 @@ export async function POST(request: Request) {
 
     return NextResponse.json(mapPrismaClientToClientSummary(created), { status: 201 })
   } catch (error) {
+    if (isMissingUrgentClientStatusEnum(error)) {
+      const fixed = await ensureUrgentClientStatusEnum()
+      if (fixed) {
+        const created = await prisma.client.create({
+          data: {
+            companyName: parsed.data.company,
+            contactPerson: parsed.data.contact,
+            email: normalizeEmail(parsed.data.email),
+            phone: parsed.data.phone ?? '',
+            location: normalizeLocation(parsed.data.location),
+            category: normalizeCategory(parsed.data.category),
+            instagram: normalizeInstagram(parsed.data.instagram),
+            whatsapp: normalizeWhatsApp(parsed.data.whatsapp),
+            website: normalizeWebsite(parsed.data.website),
+            serviceType: mapServiceToPrisma(parsed.data.service),
+            status: mapStatusToPrisma(parsed.data.status),
+            notes: parsed.data.notes || null,
+          },
+          include: {
+            projects: {
+              select: {
+                status: true,
+              },
+            },
+            payments: {
+              select: {
+                amount: true,
+                paidAt: true,
+                createdAt: true,
+              },
+            },
+          },
+        })
+
+        await createCrudNotification({
+          action: 'created',
+          entityType: 'CLIENT',
+          entityId: created.id,
+          entityLabel: CLIENT_LABEL,
+          detail: created.companyName,
+        }).catch(() => undefined)
+
+        return NextResponse.json(mapPrismaClientToClientSummary(created), { status: 201 })
+      }
+    }
+
     if (isMissingClientCategoryColumn(error)) {
       const fixed = await ensureClientCategoryColumn()
       if (fixed) {

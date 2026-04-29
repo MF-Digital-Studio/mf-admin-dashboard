@@ -293,6 +293,8 @@ export async function GET() {
           ? 'In Discussion'
           : client.status === 'ACTIVE'
             ? 'Active'
+            : client.status === 'URGENT'
+              ? 'Urgent'
             : client.status === 'COMPLETED'
               ? 'Completed'
               : 'Inactive',

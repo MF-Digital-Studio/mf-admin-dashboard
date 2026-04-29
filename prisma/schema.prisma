@@ -15,6 +15,7 @@ enum ClientStatus {
   ACTIVE
   COMPLETED
   INACTIVE
+  URGENT
 }
 
 enum ServiceType {

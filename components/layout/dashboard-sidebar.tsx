@@ -85,8 +85,8 @@ export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebar
         </div>
         {(isMobile || !collapsed) && (
           <div className="min-w-0">
-            <span className="text-sm font-bold text-sidebar-foreground tracking-tight leading-none">MF Digital</span>
-            <span className="block text-xs text-muted-foreground leading-none mt-0.5">Yonetim Paneli</span>
+            <span className="text-base font-bold text-sidebar-foreground tracking-tight leading-none">MF Digital</span>
+            <span className="block text-sm text-muted-foreground leading-none mt-0.5">Yonetim Paneli</span>
           </div>
         )}
         {isMobile && (
@@ -112,7 +112,7 @@ export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebar
               onClick={isMobile ? onMobileClose : undefined}
               title={!isMobile && collapsed ? item.label : undefined}
               className={cn(
-                'flex items-center gap-3 rounded-none px-2.5 py-2 text-sm font-medium transition-all duration-150 w-full text-left group',
+                'flex items-center gap-3 rounded-none px-2.5 py-2 text-[15px] font-medium transition-all duration-150 w-full text-left group',
                 !isMobile && collapsed && 'justify-center px-0',
                 active
                   ? 'bg-sidebar-accent text-sidebar-foreground'

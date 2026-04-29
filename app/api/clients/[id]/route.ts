@@ -30,9 +30,27 @@ function isMissingClientCategoryColumn(error: unknown): boolean {
   return column.includes('Client') && column.includes('category')
 }
 
+function isMissingUrgentClientStatusEnum(error: unknown): boolean {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError)) {
+    return false
+  }
+
+  const message = typeof error.message === 'string' ? error.message : ''
+  return message.includes('ClientStatus') && message.includes('URGENT')
+}
+
 async function ensureClientCategoryColumn(): Promise<boolean> {
   try {
     await prisma.$executeRawUnsafe('ALTER TABLE "public"."Client" ADD COLUMN IF NOT EXISTS "category" TEXT')
+    return true
+  } catch {
+    return false
+  }
+}
+
+async function ensureUrgentClientStatusEnum(): Promise<boolean> {
+  try {
+    await prisma.$executeRawUnsafe(`ALTER TYPE "public"."ClientStatus" ADD VALUE IF NOT EXISTS 'URGENT'`)
     return true
   } catch {
     return false
@@ -218,6 +236,10 @@ export async function PATCH(request: Request, { params }: Params) {
     return NextResponse.json({ message: 'At least one field is required' }, { status: 400 })
   }
 
+  if (parsed.data.status === 'Urgent') {
+    await ensureUrgentClientStatusEnum()
+  }
+
   const existingClient = await prisma.client.findUnique({
     where: { id },
     select: {
@@ -303,6 +325,40 @@ export async function PATCH(request: Request, { params }: Params) {
 
     return NextResponse.json(mapPrismaClientToClientSummary(updated))
   } catch (error) {
+    if (isMissingUrgentClientStatusEnum(error)) {
+      const fixed = await ensureUrgentClientStatusEnum()
+      if (fixed) {
+        const updated = await prisma.client.update({
+          where: { id },
+          data,
+          include: {
+            projects: {
+              select: {
+                status: true,
+              },
+            },
+            payments: {
+              select: {
+                amount: true,
+                paidAt: true,
+                createdAt: true,
+              },
+            },
+          },
+        })
+
+        await createCrudNotification({
+          action: 'updated',
+          entityType: 'CLIENT',
+          entityId: updated.id,
+          entityLabel: CLIENT_LABEL,
+          detail: updated.companyName,
+        }).catch(() => undefined)
+
+        return NextResponse.json(mapPrismaClientToClientSummary(updated))
+      }
+    }
+
     if (isMissingClientCategoryColumn(error)) {
       const fixed = await ensureClientCategoryColumn()
       if (fixed) {

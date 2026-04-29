@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { ChevronRight, Globe, Instagram, Mail, MapPin, MessageCircle, Phone, X } from 'lucide-react'
+import { ChevronDown, ChevronRight, Globe, Instagram, Mail, MapPin, MessageCircle, Phone, X } from 'lucide-react'
 import { BadgePill, StatusBadge } from '@/components/shared/badges'
 import InlineSelect from '@/components/ui/inline-select'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
@@ -18,8 +18,25 @@ import { formatCurrency } from '@/lib/format'
 import type { Client, Payment, Project, ServiceName } from '@/types'
 import { toast } from 'sonner'
 
-const statuses = ['All', 'Active', 'Lead', 'In Discussion', 'Completed', 'Inactive']
-const serviceTypes = ['All', 'Web Design', 'SEO', 'QR Menu', 'E-commerce']
+const statuses = ['All', 'Urgent', 'Active', 'Lead', 'In Discussion', 'Completed', 'Inactive']
+const serviceTypes = ['All', 'Web Design', 'SEO', 'E-commerce']
+const sortOptions = [
+  { value: 'newest', label: 'Yeniden Eskiye' },
+  { value: 'oldest', label: 'Eskiden Yeniye' },
+  { value: 'urgent', label: 'Acil Olanlar' },
+  { value: 'alphabetical', label: 'A’dan Z’ye' },
+] as const
+type SortOption = (typeof sortOptions)[number]['value']
+
+function normalizeCategory(value: string | null | undefined) {
+  if (!value) return ''
+  return value.trim().replace(/\s+/g, ' ').toLocaleLowerCase('tr-TR')
+}
+
+function toCategoryLabel(value: string | null | undefined) {
+  if (!value) return ''
+  return value.trim().replace(/\s+/g, ' ')
+}
 
 const serviceTone: Record<ServiceName, 'blue' | 'emerald' | 'orange' | 'purple'> = {
   'Web Design': 'blue',
@@ -57,6 +74,8 @@ export function ClientsPage() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('All')
   const [serviceFilter, setServiceFilter] = useState('All')
+  const [categoryFilter, setCategoryFilter] = useState('All')
+  const [sortBy, setSortBy] = useState<SortOption>('newest')
   const [selected, setSelected] = useState<string | null>(null)
   const [panelClientId, setPanelClientId] = useState<string | null>(null)
   const [isPanelOpen, setIsPanelOpen] = useState(false)
@@ -137,6 +156,21 @@ export function ClientsPage() {
     return () => window.clearTimeout(timeoutId)
   }, [selected])
 
+  const categoryFilters = useMemo(() => {
+    const categoryMap = new Map<string, string>()
+
+    for (const client of clients) {
+      const label = toCategoryLabel(client.category)
+      const normalized = normalizeCategory(label)
+      if (!normalized) continue
+      if (!categoryMap.has(normalized)) {
+        categoryMap.set(normalized, label)
+      }
+    }
+
+    return ['All', ...categoryMap.values()]
+  }, [clients])
+
   const filtered = useMemo(
     () =>
       clients.filter((client) => {
@@ -145,11 +179,41 @@ export function ClientsPage() {
           client.contact.toLowerCase().includes(search.toLowerCase())
         const matchStatus = statusFilter === 'All' || client.status === statusFilter
         const matchService = serviceFilter === 'All' || (client.services as ServiceName[]).includes(serviceFilter as ServiceName)
+        const matchCategory =
+          categoryFilter === 'All' || normalizeCategory(client.category) === normalizeCategory(categoryFilter)
 
-        return matchSearch && matchStatus && matchService
+        return matchSearch && matchStatus && matchService && matchCategory
       }),
-    [clients, search, serviceFilter, statusFilter]
+    [categoryFilter, clients, search, serviceFilter, statusFilter]
   )
+
+  const sortedClients = useMemo(() => {
+    const parseClientDate = (client: Client) => {
+      if (client.createdAt) {
+        const createdAtMs = Date.parse(client.createdAt)
+        if (!Number.isNaN(createdAtMs)) return createdAtMs
+      }
+      const fallbackMs = Date.parse(client.lastContact)
+      return Number.isNaN(fallbackMs) ? 0 : fallbackMs
+    }
+
+    const dateDesc = (a: Client, b: Client) => parseClientDate(b) - parseClientDate(a)
+    const dateAsc = (a: Client, b: Client) => parseClientDate(a) - parseClientDate(b)
+
+    const result = [...filtered]
+    if (sortBy === 'oldest') return result.sort(dateAsc)
+    if (sortBy === 'urgent') {
+      return result.sort((a, b) => {
+        const urgentDelta = Number(b.status === 'Urgent') - Number(a.status === 'Urgent')
+        if (urgentDelta !== 0) return urgentDelta
+        return dateDesc(a, b)
+      })
+    }
+    if (sortBy === 'alphabetical') {
+      return result.sort((a, b) => a.company.localeCompare(b.company, 'tr', { sensitivity: 'base' }))
+    }
+    return result.sort(dateDesc)
+  }, [filtered, sortBy])
 
   const selectedClient = selectedDetails?.client ?? clients.find((client) => client.id === panelClientId) ?? null
   const clientProjects = selectedDetails?.projects ?? []
@@ -263,10 +327,45 @@ export function ClientsPage() {
           }
         />
 
-        <div className="flex flex-col sm:flex-row gap-3">
-          <SearchField value={search} onChange={setSearch} placeholder="Müşteri ara..." className="flex-1 max-w-xs" />
-          <FilterGroup options={statuses} value={statusFilter} onChange={setStatusFilter} />
-          <FilterGroup options={serviceTypes} value={serviceFilter} onChange={setServiceFilter} />
+        <div className="space-y-3">
+          <SearchField value={search} onChange={setSearch} placeholder="Müşteri ara..." className="w-full sm:max-w-md" />
+
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+            <div className="rounded-lg border border-border/70 bg-secondary/20 p-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Durum</p>
+              <FilterGroup
+                options={statuses}
+                value={statusFilter}
+                onChange={setStatusFilter}
+                className="gap-1.5"
+                buttonClassName="px-2 py-1 text-[11px]"
+              />
+            </div>
+
+            <div className="rounded-lg border border-border/70 bg-secondary/20 p-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hizmet</p>
+              <FilterGroup
+                options={serviceTypes}
+                value={serviceFilter}
+                onChange={setServiceFilter}
+                className="gap-1.5"
+                buttonClassName="px-2 py-1 text-[11px]"
+              />
+            </div>
+
+            <div className="rounded-lg border border-border/70 bg-secondary/20 p-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Kategori</p>
+              <div className="max-h-28 overflow-y-auto pr-1">
+                <FilterGroup
+                  options={categoryFilters}
+                  value={categoryFilter}
+                  onChange={setCategoryFilter}
+                  className="gap-1.5"
+                  buttonClassName="px-2 py-1 text-[11px]"
+                />
+              </div>
+            </div>
+          </div>
         </div>
 
         {error && (
@@ -275,7 +374,29 @@ export function ClientsPage() {
           </div>
         )}
 
-        <TableWrapper title="Müşteri Listesi">
+        <TableWrapper
+          title="Müşteri Listesi"
+          action={
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-muted-foreground whitespace-nowrap">Sırala:</span>
+              <div className="relative min-w-[190px]">
+                <select
+                  id="clients-sort"
+                  value={sortBy}
+                  onChange={(event) => setSortBy(event.target.value as SortOption)}
+                  className="h-8 w-full appearance-none rounded-md border border-border/80 bg-secondary/40 pl-2.5 pr-7 text-xs text-foreground outline-none transition-[color,box-shadow,background-color] hover:bg-secondary/60 focus-visible:ring-2 focus-visible:ring-ring/40"
+                >
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              </div>
+            </div>
+          }
+        >
           <div className="overflow-x-auto">
             <table className="w-full min-w-[920px] text-sm">
               <thead>
@@ -289,14 +410,14 @@ export function ClientsPage() {
               </thead>
               <tbody>
                 {!isLoading &&
-                  filtered.map((client, index) => (
+                  sortedClients.map((client, index) => (
                     <tr
                       key={client.id}
                       onClick={() => setSelected(client.id === selected ? null : client.id)}
                       className={cn(
                         'border-b border-border/50 hover:bg-secondary/40 transition-colors cursor-pointer',
                         client.id === selected && 'bg-secondary/60',
-                        index === filtered.length - 1 && 'border-0'
+                        index === sortedClients.length - 1 && 'border-0'
                       )}
                     >
                       <td className="px-4 py-3">
@@ -326,7 +447,8 @@ export function ClientsPage() {
                       <td className="px-4 py-3">
                         <InlineSelect
                           value={client.status}
-                          options={[{ value: 'Lead', label: 'Potansiyel' }, { value: 'In Discussion', label: 'Görüşmede' }, { value: 'Active', label: 'Aktif' }, { value: 'Completed', label: 'Tamamlandı' }, { value: 'Inactive', label: 'Pasif' }]}
+                          options={[{ value: 'Lead', label: 'Potansiyel' }, { value: 'In Discussion', label: 'Görüşmede' }, { value: 'Active', label: 'Aktif' }, { value: 'Urgent', label: 'ACİL' }, { value: 'Completed', label: 'Tamamlandı' }, { value: 'Inactive', label: 'Pasif' }]}
+                          badgeClassName={client.status === 'Urgent' ? 'text-red-300 bg-red-500/10 border-red-500/30 animate-pulse [animation-duration:2.2s]' : undefined}
                           onChange={async (val) => {
                             await fetchJson(`/api/clients/${client.id}`, {
                               method: 'PATCH',
@@ -357,7 +479,7 @@ export function ClientsPage() {
               <p className="text-sm text-muted-foreground">Müşteriler yükleniyor...</p>
             </div>
           )}
-          {!isLoading && filtered.length === 0 && (
+          {!isLoading && sortedClients.length === 0 && (
             <div className="py-12 text-center">
               <p className="text-sm text-muted-foreground">Filtrelere uygun müşteri yok</p>
             </div>

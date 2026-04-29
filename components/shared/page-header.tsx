@@ -11,9 +11,9 @@ export function PageHeader({ title, description, action, eyebrow }: PageHeaderPr
   return (
     <div className="flex flex-wrap items-start justify-between gap-3">
       <div className="min-w-0">
-        {eyebrow && <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">{eyebrow}</p>}
-        <h2 className="text-lg font-semibold text-foreground">{title}</h2>
-        {description && <p className="text-sm text-muted-foreground">{description}</p>}
+        {eyebrow && <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-1">{eyebrow}</p>}
+        <h2 className="text-xl font-semibold text-foreground">{title}</h2>
+        {description && <p className="text-base text-muted-foreground">{description}</p>}
       </div>
       {action ? <div className="w-full sm:w-auto">{action}</div> : null}
     </div>

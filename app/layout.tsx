@@ -1,5 +1,5 @@
 ﻿import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Instrument_Sans, Inter } from 'next/font/google'
 import './globals.css'
 import { DashboardShell } from '@/components/layout/dashboard-shell'
 import { ThemeProvider } from '@/components/theme-provider'
@@ -8,6 +8,13 @@ import { Toaster } from '@/components/ui/sonner'
 const inter = Inter({
   subsets: ['latin'],
   display: 'swap',
+  variable: '--font-inter',
+})
+
+const instrumentSans = Instrument_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-instrument-sans',
 })
 
 export const metadata: Metadata = {
@@ -28,7 +35,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="tr" className="bg-background" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased`}>
+      <body className={`${inter.variable} ${instrumentSans.variable} font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem storageKey="mf-admin-theme">
           <DashboardShell>{children}</DashboardShell>
           <Toaster position="top-right" richColors />

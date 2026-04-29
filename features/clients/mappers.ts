@@ -21,6 +21,7 @@ const statusToUi: Record<ClientStatus, Client['status']> = {
   ACTIVE: 'Active',
   COMPLETED: 'Completed',
   INACTIVE: 'Inactive',
+  URGENT: 'Urgent',
 }
 
 const statusToPrisma: Record<Client['status'], ClientStatus> = {
@@ -29,6 +30,7 @@ const statusToPrisma: Record<Client['status'], ClientStatus> = {
   Active: 'ACTIVE',
   Completed: 'COMPLETED',
   Inactive: 'INACTIVE',
+  Urgent: 'URGENT',
 }
 
 const projectStatusToUi: Record<ProjectStatus, Project['status']> = {
@@ -88,6 +90,7 @@ export function mapPrismaClientToClientSummary(
     activeProjects,
     totalPaid,
     lastContact: toDateString(latestPaymentDate ?? client.updatedAt),
+    createdAt: client.createdAt.toISOString(),
     tags: [service],
     notes: client.notes ?? '',
     location: client.location ?? '-',

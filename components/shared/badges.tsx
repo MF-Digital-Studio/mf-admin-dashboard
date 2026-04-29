@@ -42,6 +42,7 @@ const statusTones: Record<string, { label: string; tone: BadgeTone }> = {
   Active: { label: 'Aktif', tone: 'emerald' },
   Completed: { label: 'Tamamlandı', tone: 'zinc' },
   Inactive: { label: 'Pasif', tone: 'zinc' },
+  Urgent: { label: 'ACİL', tone: 'red' },
   Planning: { label: 'Planlama', tone: 'slate' },
   Design: { label: 'Tasarım', tone: 'purple' },
   Development: { label: 'Geliştirme', tone: 'blue' },
@@ -71,7 +72,8 @@ const priorityTones: Record<PriorityLevel, { label: string; tone: BadgeTone }> =
 
 export function StatusBadge({ status, className }: { status: string; className?: string }) {
   const config = statusTones[status] ?? { label: status, tone: 'zinc' }
-  return <BadgePill tone={config.tone} className={className}>{config.label}</BadgePill>
+  const urgentClassName = status === 'Urgent' ? 'animate-pulse [animation-duration:2.2s]' : ''
+  return <BadgePill tone={config.tone} className={cn(urgentClassName, className)}>{config.label}</BadgePill>
 }
 
 export function PriorityBadge({ priority, className }: { priority: PriorityLevel; className?: string }) {

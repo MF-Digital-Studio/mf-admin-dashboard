@@ -1,0 +1,1 @@
+ALTER TYPE "public"."ClientStatus" ADD VALUE IF NOT EXISTS 'URGENT';
