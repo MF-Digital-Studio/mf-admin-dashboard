@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { RouteId } from '@/types'
+import { onDashboardDataRefresh } from '@/lib/dashboard-events'
 
 const navItems: Array<{ label: string; icon: typeof LayoutDashboard; href: string; id: RouteId }> = [
   { label: 'Gösterge Paneli', icon: LayoutDashboard, href: '/dashboard', id: 'dashboard' },
@@ -43,6 +44,7 @@ interface DashboardSidebarProps {
 
 export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebarProps) {
   const [collapsed, setCollapsed] = useState(false)
+  const [agencyName, setAgencyName] = useState('MF Digital Studio')
   const pathname = usePathname()
   const previousPathnameRef = useRef(pathname)
 
@@ -63,6 +65,33 @@ export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebar
       document.body.style.overflow = originalOverflow
     }
   }, [mobileOpen])
+
+  useEffect(() => {
+    let mounted = true
+
+    const loadSettings = async () => {
+      try {
+        const response = await fetch('/api/settings', { cache: 'no-store' })
+        if (!response.ok) return
+        const data = (await response.json()) as { agencyName?: string }
+        if (mounted && data.agencyName && data.agencyName.trim().length > 0) {
+          setAgencyName(data.agencyName.trim())
+        }
+      } catch {
+        // no-op
+      }
+    }
+
+    void loadSettings()
+    const cleanup = onDashboardDataRefresh(() => {
+      void loadSettings()
+    })
+
+    return () => {
+      mounted = false
+      cleanup()
+    }
+  }, [])
 
   const sidebarContent = (isMobile = false) => (
     <>
@@ -85,8 +114,8 @@ export function DashboardSidebar({ mobileOpen, onMobileClose }: DashboardSidebar
         </div>
         {(isMobile || !collapsed) && (
           <div className="min-w-0">
-            <span className="text-base font-bold text-sidebar-foreground tracking-tight leading-none">MF Digital</span>
-            <span className="block text-sm text-muted-foreground leading-none mt-0.5">Yonetim Paneli</span>
+            <span className="text-base font-bold text-sidebar-foreground tracking-tight leading-none">{agencyName}</span>
+            <span className="block text-sm text-muted-foreground leading-none mt-0.5">Yönetim Paneli</span>
           </div>
         )}
         {isMobile && (

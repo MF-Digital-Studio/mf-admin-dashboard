@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { PageHeader } from '@/components/shared/page-header'
 import { toast } from 'sonner'
+import { emitDashboardDataRefresh } from '@/lib/dashboard-events'
 
 const tabs = [
   { id: 'general', label: 'Genel', icon: User },
@@ -23,10 +24,7 @@ const themeOptions = [
 
 type SettingsData = {
   agencyName: string
-  email: string
-  phone: string
-  website: string
-  defaultCurrency: string
+  defaultCurrency: 'TRY' | 'USD' | 'EUR'
 }
 
 type TeamMember = {
@@ -53,9 +51,6 @@ export function SettingsPage() {
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const [settings, setSettings] = useState<SettingsData>({
     agencyName: 'MF Digital Studio',
-    email: 'info@mfdigital.com',
-    phone: '+90 555 000 0000',
-    website: 'https://mfdigital.com',
     defaultCurrency: 'TRY',
   })
   const { theme, setTheme } = useTheme()
@@ -89,6 +84,7 @@ export function SettingsPage() {
       })
       setSaved(true)
       toast.success('Ayarlar kaydedildi')
+      emitDashboardDataRefresh()
       setTimeout(() => setSaved(false), 2000)
     } catch (error) {
       toast.error('Ayarlar kaydedilemedi')
@@ -144,36 +140,16 @@ export function SettingsPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1.5">E-posta</label>
-                  <Input
-                    value={settings.email}
-                    onChange={(e) => handleInputChange('email', e.target.value)}
-                    className="h-8 text-sm bg-secondary border-border"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1.5">Telefon</label>
-                  <Input
-                    value={settings.phone}
-                    onChange={(e) => handleInputChange('phone', e.target.value)}
-                    className="h-8 text-sm bg-secondary border-border"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground block mb-1.5">Web Sitesi</label>
-                  <Input
-                    value={settings.website}
-                    onChange={(e) => handleInputChange('website', e.target.value)}
-                    className="h-8 text-sm bg-secondary border-border"
-                  />
-                </div>
-                <div>
                   <label className="text-sm font-medium text-muted-foreground block mb-1.5">Varsayılan Para Birimi</label>
-                  <Input
+                  <select
                     value={settings.defaultCurrency}
-                    onChange={(e) => handleInputChange('defaultCurrency', e.target.value)}
-                    className="h-8 text-sm bg-secondary border-border"
-                  />
+                    onChange={(e) => handleInputChange('defaultCurrency', e.target.value as SettingsData['defaultCurrency'])}
+                    className="h-8 w-full rounded-md border border-border bg-secondary px-3 text-sm text-foreground outline-none transition-[color,box-shadow] focus-visible:ring-2 focus-visible:ring-ring/40"
+                  >
+                    <option value="TRY">TRY</option>
+                    <option value="USD">Dolar</option>
+                    <option value="EUR">Euro</option>
+                  </select>
                 </div>
               </div>
             </div>

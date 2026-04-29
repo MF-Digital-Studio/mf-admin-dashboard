@@ -11,6 +11,13 @@ const DEFAULT_SETTINGS = {
   defaultCurrency: 'TRY',
 }
 
+function normalizeCurrency(value: unknown): 'TRY' | 'USD' | 'EUR' {
+  const raw = String(value ?? '').trim().toUpperCase()
+  if (raw === 'USD' || raw === 'DOLAR') return 'USD'
+  if (raw === 'EUR' || raw === 'EURO') return 'EUR'
+  return 'TRY'
+}
+
 export async function GET() {
   const adminCheck = await requireAdminApiAccess()
   if (!adminCheck.ok) {
@@ -22,18 +29,15 @@ export async function GET() {
     })
 
     if (!settings) {
-      return NextResponse.json(DEFAULT_SETTINGS)
+      return NextResponse.json({ agencyName: DEFAULT_SETTINGS.agencyName, defaultCurrency: DEFAULT_SETTINGS.defaultCurrency })
     }
 
     return NextResponse.json({
       agencyName: settings.agencyName,
-      email: settings.email,
-      phone: settings.phone,
-      website: settings.website,
-      defaultCurrency: settings.defaultCurrency,
+      defaultCurrency: normalizeCurrency(settings.defaultCurrency),
     })
   } catch {
-    return NextResponse.json(DEFAULT_SETTINGS)
+    return NextResponse.json({ agencyName: DEFAULT_SETTINGS.agencyName, defaultCurrency: DEFAULT_SETTINGS.defaultCurrency })
   }
 }
 
@@ -55,7 +59,7 @@ export async function PATCH(request: Request) {
   if (body.email !== undefined) data.email = String(body.email)
   if (body.phone !== undefined) data.phone = String(body.phone)
   if (body.website !== undefined) data.website = String(body.website)
-  if (body.defaultCurrency !== undefined) data.defaultCurrency = String(body.defaultCurrency)
+  if (body.defaultCurrency !== undefined) data.defaultCurrency = normalizeCurrency(body.defaultCurrency)
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ message: 'No settings provided' }, { status: 400 })
@@ -77,10 +81,7 @@ export async function PATCH(request: Request) {
 
     return NextResponse.json({
       agencyName: updated.agencyName,
-      email: updated.email,
-      phone: updated.phone,
-      website: updated.website,
-      defaultCurrency: updated.defaultCurrency,
+      defaultCurrency: normalizeCurrency(updated.defaultCurrency),
     })
   } catch {
     return NextResponse.json(
