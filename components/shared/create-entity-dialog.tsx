@@ -260,12 +260,12 @@ function ClientFields({ initialValues }: { initialValues?: ClientFormValues }) {
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Durum</label>
           <select name="status" className={selectClass} defaultValue={initialValues?.status ?? 'Lead'} required>
-            <option>Lead</option>
-            <option>In Discussion</option>
-            <option>Active</option>
+            <option value="Lead">Potansiyel</option>
+            <option value="In Discussion">Görüşmede</option>
+            <option value="Active">Aktif</option>
             <option value="Urgent">Acil</option>
-            <option>Completed</option>
-            <option>Inactive</option>
+            <option value="Completed">Tamamlandı</option>
+            <option value="Inactive">Pasif</option>
           </select>
         </div>
         <div className="grid gap-2">
