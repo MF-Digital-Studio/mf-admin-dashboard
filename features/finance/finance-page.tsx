@@ -41,14 +41,14 @@ type BreakdownPoint = {
 const serviceLabelMap: Record<ServiceName, string> = {
   'Web Design': 'Web Tasarim',
   SEO: 'SEO',
-  'QR Menu': 'QR Menu',
+  'Social Media': 'Sosyal Medya',
   'E-commerce': 'E-ticaret',
 }
 
 const categoryLabelMap: Record<ServiceName, string> = {
   'Web Design': 'Web Tasarim',
   SEO: 'SEO',
-  'QR Menu': 'QR Menu',
+  'Social Media': 'Sosyal Medya',
   'E-commerce': 'E-ticaret',
 }
 

@@ -4,14 +4,14 @@ import type { Client, Payment, Project, ServiceName } from '@/types'
 const serviceToUi: Record<ServiceType, ServiceName> = {
   WEB_DESIGN: 'Web Design',
   SEO: 'SEO',
-  QR_MENU: 'QR Menu',
+  SOCIAL_MEDIA: 'Social Media',
   E_COMMERCE: 'E-commerce',
 }
 
 const serviceToPrisma: Record<ServiceName, ServiceType> = {
   'Web Design': 'WEB_DESIGN',
   SEO: 'SEO',
-  'QR Menu': 'QR_MENU',
+  'Social Media': 'SOCIAL_MEDIA',
   'E-commerce': 'E_COMMERCE',
 }
 

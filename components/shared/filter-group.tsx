@@ -1,4 +1,4 @@
-﻿import { cn } from '@/lib/utils'
+import { cn } from '@/lib/utils'
 
 interface FilterGroupProps {
   options: string[]
@@ -34,7 +34,7 @@ const filterLabelMap: Record<string, string> = {
   Overdue: 'Geciken',
   'High Priority': 'Yüksek Öncelik',
   'Web Design': 'Web Tasarım',
-  'QR Menu': 'QR Menü',
+  'Social Media': 'Sosyal Medya',
   'E-commerce': 'E-ticaret',
   SEO: 'SEO',
   Logos: 'Logolar',

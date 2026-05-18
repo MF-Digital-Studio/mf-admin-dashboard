@@ -1,6 +1,6 @@
-﻿'use client'
+'use client'
 
-import { Check, Globe, Plus, QrCode, Shield, ShoppingBag, TrendingUp } from 'lucide-react'
+import { Check, Globe, Plus, Instagram, Shield, ShoppingBag, TrendingUp } from 'lucide-react'
 import { services } from '@/features/services/data'
 import { PageHeader } from '@/components/shared/page-header'
 import { BadgePill } from '@/components/shared/badges'
@@ -8,7 +8,7 @@ import { BadgePill } from '@/components/shared/badges'
 const iconMap: Record<string, any> = {
   Globe,
   TrendingUp,
-  QrCode,
+  Instagram,
   ShoppingBag,
   Shield,
 }

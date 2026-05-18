@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 export const paymentStatuses = ['Paid', 'Pending', 'Overdue'] as const
-export const paymentCategories = ['Web Design', 'SEO', 'QR Menu', 'E-commerce'] as const
+export const paymentCategories = ['Web Design', 'SEO', 'Social Media', 'E-commerce'] as const
 
 const datePattern = /^\d{4}-\d{2}-\d{2}$/
 

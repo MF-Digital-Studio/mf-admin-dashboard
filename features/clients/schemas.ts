@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const serviceNames = ['Web Design', 'SEO', 'QR Menu', 'E-commerce'] as const
+export const serviceNames = ['Web Design', 'SEO', 'Social Media', 'E-commerce'] as const
 export const clientStatuses = ['Lead', 'In Discussion', 'Active', 'Completed', 'Inactive', 'Urgent'] as const
 
 const optionalEmailSchema = z

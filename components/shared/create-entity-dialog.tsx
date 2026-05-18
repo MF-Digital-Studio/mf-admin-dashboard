@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import type { ReactNode } from 'react'
 import { useEffect, useState } from 'react'
@@ -251,7 +251,7 @@ function ClientFields({ initialValues }: { initialValues?: ClientFormValues }) {
           <select name="service" className={selectClass} defaultValue={initialValues?.service ?? 'Web Design'} required>
             <option>Web Design</option>
             <option>SEO</option>
-            <option>QR Menu</option>
+            <option>Social Media</option>
             <option>E-commerce</option>
           </select>
         </div>
@@ -306,7 +306,7 @@ function ProjectFields({
           <select name="service" className={selectClass} defaultValue={initialValues?.service ?? 'Web Design'} required>
             <option>Web Design</option>
             <option>SEO</option>
-            <option>QR Menu</option>
+            <option>Social Media</option>
             <option>E-commerce</option>
           </select>
         </div>
@@ -454,7 +454,7 @@ function PaymentFields({
           <select name="category" className={selectClass} defaultValue={initialValues?.category ?? 'Web Design'} required>
             <option>Web Design</option>
             <option>SEO</option>
-            <option>QR Menu</option>
+            <option>Social Media</option>
             <option>E-commerce</option>
           </select>
         </div>

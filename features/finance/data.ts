@@ -1,4 +1,4 @@
-﻿import type { Expense, Payment } from '@/types'
+import type { Expense, Payment } from '@/types'
 
 export const monthlyRevenue = [
   { month: 'Kas', revenue: 18500, expenses: 5200 },
@@ -55,9 +55,9 @@ export const payments = [
     id: 'pay5',
     client: 'Trabzon Balık Evi',
     clientId: 'c6',
-    amount: 3500,
+    amount: 5000,
     date: '2024-05-20',
-    category: 'QR Menu',
+    category: 'Social Media',
     status: 'Pending',
     method: 'Banka Havalesi',
   },

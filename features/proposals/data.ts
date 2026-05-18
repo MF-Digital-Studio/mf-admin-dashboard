@@ -1,4 +1,4 @@
-﻿import type { PipelineStage, Proposal } from '@/types'
+import type { PipelineStage, Proposal } from '@/types'
 
 export const proposals = [
   {
@@ -53,10 +53,10 @@ export const proposals = [
   },
   {
     id: 'pr6',
-    title: 'Yeni Müşteri - QR Menü Paketi',
+    title: 'Yeni Müşteri - Sosyal Medya Yönetimi',
     client: 'Pendik Cafe',
     clientId: 'c9',
-    amount: 4200,
+    amount: 5500,
     sentDate: null,
     status: 'Draft',
     followUp: '2024-05-19',

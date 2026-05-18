@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-export const projectServices = ['Web Design', 'SEO', 'QR Menu', 'E-commerce'] as const
+export const projectServices = ['Web Design', 'SEO', 'Social Media', 'E-commerce'] as const
 export const projectStatuses = ['Planning', 'Design', 'Development', 'Revision', 'Waiting for Client', 'On Hold', 'Completed'] as const
 export const projectPriorities = ['High', 'Medium', 'Low'] as const
 

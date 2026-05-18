@@ -1,4 +1,4 @@
-export type ServiceName = 'Web Design' | 'SEO' | 'QR Menu' | 'E-commerce'
+export type ServiceName = 'Web Design' | 'SEO' | 'Social Media' | 'E-commerce'
 
 export type PriorityLevel = 'High' | 'Medium' | 'Low'
 

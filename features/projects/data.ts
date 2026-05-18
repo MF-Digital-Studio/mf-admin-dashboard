@@ -1,4 +1,4 @@
-﻿import type { Project } from '@/types'
+import type { Project } from '@/types'
 
 export const projects = [
   {
@@ -48,18 +48,18 @@ export const projects = [
   },
   {
     id: 'p4',
-    name: 'Ankara Gurme - QR Menü v2',
+    name: 'Ankara Gurme - Sosyal Medya v2',
     client: 'Ankara Gurme Restoran',
     clientId: 'c1',
-    service: 'QR Menu',
+    service: 'Social Media',
     startDate: '2024-05-01',
     deadline: '2024-05-25',
-    budget: 4500,
+    budget: 6000,
     status: 'Waiting for Client',
     priority: 'Medium',
     taskCount: 10,
     completedTaskCount: 9,
-    description: 'Güncel menü içeriği ve QR kod yenilemesi.',
+    description: 'Sosyal medya hesap yönetimi ve içerik üretimi.',
   },
   {
     id: 'p5',
@@ -74,22 +74,22 @@ export const projects = [
     priority: 'High',
     taskCount: 20,
     completedTaskCount: 17,
-    description: 'Lüks otel için web sitesi + SEO + QR menü.',
+    description: 'Lüks otel için web sitesi + SEO + Sosyal Medya.',
   },
   {
     id: 'p6',
-    name: 'Trabzon Balık - QR Menü',
+    name: 'Trabzon Balık - Sosyal Medya',
     client: 'Trabzon Balık Evi',
     clientId: 'c6',
-    service: 'QR Menu',
+    service: 'Social Media',
     startDate: '2024-05-10',
     deadline: '2024-05-22',
-    budget: 3500,
+    budget: 5000,
     status: 'Planning',
     priority: 'Low',
     taskCount: 13,
     completedTaskCount: 2,
-    description: 'Sezonluk yeni QR menü tasarımı.',
+    description: 'Sosyal medya içerik planlaması ve tasarımı.',
   },
   {
     id: 'p7',

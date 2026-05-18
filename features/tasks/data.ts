@@ -1,4 +1,4 @@
-﻿import type { Task } from '@/types'
+import type { Task } from '@/types'
 
 export const tasks = [
   {
@@ -33,8 +33,8 @@ export const tasks = [
   },
   {
     id: 't4',
-    title: 'QR Menü İçerik Güncellemesi',
-    project: 'Ankara Gurme - QR Menü v2',
+    title: 'Sosyal Medya Gönderi Paylaşımı',
+    project: 'Ankara Gurme - Sosyal Medya v2',
     projectId: 'p4',
     assignedTo: 'Admin',
     priority: 'Medium',
@@ -83,8 +83,8 @@ export const tasks = [
   },
   {
     id: 't9',
-    title: 'Sezonluk Menü Fotoğraf Çekimi',
-    project: 'Trabzon Balık - QR Menü',
+    title: 'Sezonluk Gönderi Tasarımları',
+    project: 'Trabzon Balık - Sosyal Medya',
     projectId: 'p6',
     assignedTo: 'Admin',
     priority: 'Low',

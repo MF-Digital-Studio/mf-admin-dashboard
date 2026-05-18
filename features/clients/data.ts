@@ -1,4 +1,4 @@
-﻿import type { Client } from '@/types'
+import type { Client } from '@/types'
 
 export const clients = [
   {
@@ -7,12 +7,12 @@ export const clients = [
     contact: 'Mehmet Yılmaz',
     email: 'mehmet@ankarag.com',
     phone: '+90 532 100 1111',
-    services: ['Web Design', 'QR Menu'],
+    services: ['Web Design', 'Social Media'],
     status: 'Active',
     activeProjects: 2,
     totalPaid: 28500,
     lastContact: '2024-05-10',
-    tags: ['Web Design', 'QR Menu'],
+    tags: ['Web Design', 'Social Media'],
     notes: 'Haziran ayında ana sayfa revizyonu gerekiyor.',
     location: 'Ankara',
   },
@@ -82,13 +82,13 @@ export const clients = [
     contact: 'Elif Şahin',
     email: 'elif@trabzonbalik.com',
     phone: '+90 530 600 6666',
-    services: ['QR Menu'],
+    services: ['Social Media'],
     status: 'Active',
     activeProjects: 1,
     totalPaid: 8500,
     lastContact: '2024-05-14',
-    tags: ['QR Menu'],
-    notes: 'İkinci QR menü güncellemesi gerekiyor.',
+    tags: ['Social Media'],
+    notes: 'Sosyal medya planlama güncellemesi gerekiyor.',
     location: 'Trabzon',
   },
   {
@@ -112,12 +112,12 @@ export const clients = [
     contact: 'Zeynep Çelik',
     email: 'zeynep@bodrumbutik.com',
     phone: '+90 538 800 8888',
-    services: ['Web Design', 'QR Menu', 'SEO'],
+    services: ['Web Design', 'Social Media', 'SEO'],
     status: 'Active',
     activeProjects: 3,
     totalPaid: 54000,
     lastContact: '2024-05-15',
-    tags: ['Web Design', 'QR Menu', 'SEO'],
+    tags: ['Web Design', 'Social Media', 'SEO'],
     notes: 'VIP müşteri - öncelikli destek gerekiyor.',
     location: 'Bodrum',
   },

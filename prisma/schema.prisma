@@ -21,7 +21,7 @@ enum ClientStatus {
 enum ServiceType {
   WEB_DESIGN
   SEO
-  QR_MENU
+  SOCIAL_MEDIA
   E_COMMERCE
 }
 

@@ -1,4 +1,4 @@
-﻿import type { Note } from '@/types'
+import type { Note } from '@/types'
 
 export const notes = [
   {
@@ -23,11 +23,11 @@ export const notes = [
   },
   {
     id: 'n3',
-    title: 'Yeni Hizmet Fiyatlandırma - QR Menü 2024',
+    title: 'Yeni Hizmet Fiyatlandırma - Sosyal Medya 2024',
     category: 'Internal Ideas',
     related: null,
     relatedType: 'internal',
-    content: 'Yeni müşteriler için QR Menü başlangıç fiyatı ₺4.500 düşünülebilir. Alerjen bilgisini varsayılan özellik yap. 1 ay hosting ile paketlenebilir.',
+    content: 'Yeni müşteriler için Sosyal Medya Yönetimi başlangıç fiyatı ₺7.500 düşünülebilir. Post ve reels sıklığını paketlere göre belirle.',
     updatedAt: '2024-05-12',
     tags: ['fiyat', 'strateji'],
   },
@@ -47,7 +47,7 @@ export const notes = [
     category: 'Internal Ideas',
     related: null,
     relatedType: 'internal',
-    content: 'Bodrum ve Antalya konaklama sektörüne odaklan. Web + QR + SEO paketini ₺25.000 sabit fiyatla çıkar. Referans programı oluştur.',
+    content: 'Bodrum ve Antalya konaklama sektörüne odaklan. Web + Sosyal Medya + SEO paketini ₺30.000 sabit fiyatla çıkar. Referans programı oluştur.',
     updatedAt: '2024-05-11',
     tags: ['strateji', 'buyume'],
   },

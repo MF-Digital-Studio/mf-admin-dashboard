@@ -1,4 +1,4 @@
-﻿import type { Service } from '@/types'
+import type { Service } from '@/types'
 
 export const services = [
   {
@@ -27,14 +27,14 @@ export const services = [
   },
   {
     id: 's3',
-    name: 'QR Menü',
-    icon: 'QrCode',
-    description: 'Restoranlar için canlı güncellenebilen dijital QR menüler.',
-    startingPrice: 3500,
+    name: 'Sosyal Medya Yönetimi',
+    icon: 'Instagram',
+    description: 'Markanız için içerik üretimi, planlama ve topluluk yönetimi.',
+    startingPrice: 7500,
     currency: '₺',
-    delivery: '1-2 hafta',
-    includes: ['Özel Tasarım', 'QR Kod Üretimi', 'Sınırsız Menü Öğesi', 'Analitik Paneli', 'Mobil Uyumlu'],
-    addons: ['Çoklu Dil', 'Alerjen Bilgisi', 'Sipariş Entegrasyonu'],
+    delivery: 'Aylık retainer',
+    includes: ['İçerik Stratejisi', 'Post & Reels Tasarımı', 'Metin Yazarlığı', 'Aylık Planlama', 'Performans Raporu'],
+    addons: ['Reklam Yönetimi', 'Influencer İş Birlikleri', 'Profesyonel Çekim'],
     color: 'orange',
   },
   {

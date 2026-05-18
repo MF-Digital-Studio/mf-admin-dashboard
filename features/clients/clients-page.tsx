@@ -19,7 +19,7 @@ import type { Client, Payment, Project, ServiceName } from '@/types'
 import { toast } from 'sonner'
 
 const statuses = ['All', 'Urgent', 'Active', 'Lead', 'In Discussion', 'Completed', 'Inactive']
-const serviceTypes = ['All', 'Web Design', 'SEO', 'E-commerce']
+const serviceTypes = ['All', 'Web Design', 'SEO', 'Social Media', 'E-commerce']
 const sortOptions = [
   { value: 'newest', label: 'Yeniden Eskiye' },
   { value: 'oldest', label: 'Eskiden Yeniye' },
@@ -41,14 +41,14 @@ function toCategoryLabel(value: string | null | undefined) {
 const serviceTone: Record<ServiceName, 'blue' | 'emerald' | 'orange' | 'purple'> = {
   'Web Design': 'blue',
   SEO: 'emerald',
-  'QR Menu': 'orange',
+  'Social Media': 'orange',
   'E-commerce': 'purple',
 }
 
 const serviceLabelMap: Record<ServiceName, string> = {
   'Web Design': 'Web Tasarım',
   SEO: 'SEO',
-  'QR Menu': 'QR Menü',
+  'Social Media': 'Sosyal Medya',
   'E-commerce': 'E-ticaret',
 }
 

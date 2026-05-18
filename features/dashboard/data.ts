@@ -1,9 +1,9 @@
-﻿import type { ActivityItem } from '@/types'
+import type { ActivityItem } from '@/types'
 import { projects } from '@/features/projects/data'
 
 export const activities = [
   { id: 'a1', action: 'Ödeme alındı', detail: '₺19.000 - Bodrum Butik Otel', time: '2 saat önce', type: 'payment' },
-  { id: 'a2', action: 'Görev tamamlandı', detail: 'QR Menü İçerik Güncelleme - Ankara Gurme', time: '4 saat önce', type: 'task' },
+  { id: 'a2', action: 'Görev tamamlandı', detail: 'Sosyal Medya Post Paylaşımı - Ankara Gurme', time: '4 saat önce', type: 'task' },
   { id: 'a3', action: 'Teklif kabul edildi', detail: 'Bodrum Butik - Sosyal Medya Eklentisi', time: '1 gün önce', type: 'proposal' },
   { id: 'a4', action: 'Yeni müşteri eklendi', detail: 'Mersin Oto Galeri - Potansiyel', time: '2 gün önce', type: 'client' },
   { id: 'a5', action: 'Proje güncellendi', detail: 'İstanbul Mode - E-ticaret %70', time: '2 gün önce', type: 'project' },

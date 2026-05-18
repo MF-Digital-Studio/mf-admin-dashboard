@@ -24,19 +24,19 @@ const billingStateLabelMap = {
 
 const statuses = ['All', 'Planning', 'Design', 'Development', 'Revision', 'Waiting for Client', 'Completed', 'On Hold']
 const priorities = ['All', 'High', 'Medium', 'Low']
-const serviceFilters = ['All', 'Web Design', 'SEO', 'QR Menu', 'E-commerce']
+const serviceFilters = ['All', 'Web Design', 'SEO', 'Social Media', 'E-commerce']
 
 const serviceTone: Record<ServiceName, 'blue' | 'emerald' | 'orange' | 'purple'> = {
   'Web Design': 'blue',
   SEO: 'emerald',
-  'QR Menu': 'orange',
+  'Social Media': 'orange',
   'E-commerce': 'purple',
 }
 
 const serviceLabelMap: Record<ServiceName, string> = {
   'Web Design': 'Web Tasarım',
   SEO: 'SEO',
-  'QR Menu': 'QR Menü',
+  'Social Media': 'Sosyal Medya',
   'E-commerce': 'E-ticaret',
 }
 
