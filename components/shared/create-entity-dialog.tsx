@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { SearchableSelect } from '@/components/ui/searchable-select'
 import type { ClientStatus, NoteCategory, NoteRelatedType, PaymentStatus, PriorityLevel, ProjectStatus, ProposalStatus, ServiceName, TaskStatus } from '@/types'
 import type { SubscriptionBillingCycle } from '@/types'
 
@@ -295,11 +296,13 @@ function ProjectFields({
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Müşteri</label>
-          <select name="clientId" className={selectClass} defaultValue={initialValues?.clientId ?? firstClientId} required>
-            {clientOptions.map((option) => (
-              <option key={option.id} value={option.id}>{option.company}</option>
-            ))}
-          </select>
+          <SearchableSelect
+            name="clientId"
+            options={clientOptions.map((o) => ({ value: o.id, label: o.company }))}
+            defaultValue={initialValues?.clientId ?? firstClientId}
+            placeholder="Müşteri seçin..."
+            required
+          />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Kategori</label>
@@ -437,11 +440,13 @@ function PaymentFields({
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Müşteri</label>
-          <select name="clientId" className={selectClass} defaultValue={selectedClientId} required>
-            {clientOptions.map((option) => (
-              <option key={option.id} value={option.id}>{option.company}</option>
-            ))}
-          </select>
+          <SearchableSelect
+            name="clientId"
+            options={clientOptions.map((o) => ({ value: o.id, label: o.company }))}
+            defaultValue={selectedClientId}
+            placeholder="Müşteri seçin..."
+            required
+          />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>Tutar</label>
@@ -532,11 +537,13 @@ function ProposalFields({
         {clientMode === 'existing' ? (
           <div className="grid gap-2">
             <label className={fieldLabelClass}>Müşteri</label>
-            <select name="clientId" className={selectClass} defaultValue={initialValues?.clientId ?? firstClientId} required>
-              {clientOptions.map((option) => (
-                <option key={option.id} value={option.id}>{option.company}</option>
-              ))}
-            </select>
+            <SearchableSelect
+              name="clientId"
+              options={clientOptions.map((o) => ({ value: o.id, label: o.company }))}
+              defaultValue={initialValues?.clientId ?? firstClientId}
+              placeholder="Müşteri seçin..."
+              required
+            />
           </div>
         ) : (
           <div className="grid gap-2">
@@ -688,12 +695,13 @@ function NoteFields({
       <div className="grid grid-cols-2 gap-3">
         <div className="grid gap-2">
           <label className={fieldLabelClass}>İlişkili Müşteri</label>
-          <select name="clientId" className={selectClass} defaultValue={initialValues?.clientId ?? ''}>
-            <option value="">Seçilmedi</option>
-            {clientOptions.map((client) => (
-              <option key={client.id} value={client.id}>{client.company}</option>
-            ))}
-          </select>
+          <SearchableSelect
+            name="clientId"
+            options={clientOptions.map((o) => ({ value: o.id, label: o.company }))}
+            defaultValue={initialValues?.clientId ?? ''}
+            placeholder="Müşteri seçin..."
+            emptyLabel="Seçilmedi"
+          />
         </div>
         <div className="grid gap-2">
           <label className={fieldLabelClass}>İlişkili Proje</label>
